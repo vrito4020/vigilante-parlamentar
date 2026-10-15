@@ -1,0 +1,523 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import axios from 'axios'
+import { 
+  AlertTriangle, 
+  TrendingUp, 
+  Users, 
+  Search, 
+  ChevronLeft, 
+  ChevronRight,
+  BarChart3,
+  PieChart as PieChartIcon,
+  Building2,
+  ShieldAlert,
+  Coins
+} from 'lucide-react'
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts'
+
+const CORES_CATEGORIAS = [
+  '#2563eb', // Azul
+  '#4f46e5', // Índigo
+  '#0891b2', // Ciano
+  '#059669', // Esmeralda
+  '#d97706', // Âmbar
+  '#7c3aed', // Roxo
+  '#db2777', // Rosa
+  '#475569'  // Cinza ardósia
+]
+
+const formatarMoedaCompleta = (val) => 
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0)
+
+// Tooltip para valores monetários
+const TooltipMoeda = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload
+    return (
+      <div className="bg-slate-900 text-white p-3 rounded-xl shadow-xl text-xs space-y-1 border border-slate-700 max-w-xs z-50">
+        <p className="font-bold text-sm text-slate-100">{data.razao_completa || data.categoria}</p>
+        {data.cnpj && <p className="text-slate-400">CNPJ: {data.cnpj}</p>}
+        <p className="text-emerald-400 font-bold text-base">
+          {formatarMoedaCompleta(payload[0].value)}
+        </p>
+        {data.quantidade && <p className="text-slate-300">{data.quantidade} notas fiscais emitidas</p>}
+        {data.percentual !== undefined && (
+          <p className="text-blue-300 font-semibold">{data.percentual}% do volume total</p>
+        )}
+      </div>
+    )
+  }
+  return null
+}
+
+// Tooltip para contagem de alertas
+const TooltipAlerta = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload
+    return (
+      <div className="bg-slate-900 text-white p-3 rounded-xl shadow-xl text-xs space-y-1 border border-slate-700 z-50">
+        <p className="font-bold text-sm text-slate-100">{data.tipo || data.severidade}</p>
+        <p className="text-amber-400 font-bold text-base">
+          {payload[0].value} {payload[0].value === 1 ? 'incidência' : 'incidências'}
+        </p>
+      </div>
+    )
+  }
+  return null
+}
+
+import { API_URL } from '../config'
+
+export default function Home() {
+  const [stats, setStats] = useState(null)
+  const [chartsData, setChartsData] = useState(null)
+  const [deputados, setDeputados] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 20
+  
+  useEffect(() => {
+    // Busca estatísticas, lista de deputados e dados analíticos para os gráficos
+    Promise.all([
+      axios.get(`${API_URL}/api/dashboard/stats`),
+      axios.get(`${API_URL}/api/deputados`),
+      axios.get(`${API_URL}/api/dashboard/charts`)
+    ]).then(([resStats, resDeps, resCharts]) => {
+      setStats(resStats.data)
+      setDeputados(resDeps.data)
+      setChartsData(resCharts.data)
+    }).catch(err => console.error("Erro ao carregar dados:", err))
+  }, [])
+
+  // Filtragem e Paginação
+  const filteredDeputados = deputados.filter(dep => 
+    dep.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    dep.partido.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    dep.uf.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const totalPages = Math.max(1, Math.ceil(filteredDeputados.length / itemsPerPage))
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const currentDeputados = filteredDeputados.slice(startIndex, startIndex + itemsPerPage)
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value)
+    setCurrentPage(1) // Volta para a primeira página ao pesquisar
+  }
+
+  return (
+    <div className="space-y-10 animate-in fade-in duration-500">
+      <header className="mb-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Painel de Monitoramento & Auditoria</h1>
+            <p className="text-slate-600 text-lg mt-1">
+              Auditoria cívica em tempo real dos gastos da Cota Parlamentar (CEAP) cruzados com Receita Federal e TSE.
+            </p>
+          </div>
+          {chartsData?.total_volume_financeiro > 0 && (
+            <div className="bg-emerald-50 border border-emerald-200 px-4 py-2.5 rounded-xl flex items-center gap-2 self-start md:self-auto shadow-sm">
+              <Coins className="w-5 h-5 text-emerald-600" />
+              <div>
+                <p className="text-xs uppercase font-bold text-emerald-700 tracking-wider">Volume CEAP Auditado</p>
+                <p className="text-lg font-black text-emerald-950">{formatarMoedaCompleta(chartsData.total_volume_financeiro)}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Cards de Métricas Principais */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex items-center gap-5 hover:shadow-md transition-shadow">
+          <div className="bg-blue-50 p-4 rounded-xl text-blue-600 ring-1 ring-blue-100">
+            <Users size={32} />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Deputados Cadastrados</p>
+            <p className="text-4xl font-black text-slate-800 mt-1">{stats?.total_deputados || '-'}</p>
+            <p className="text-xs text-slate-400 mt-1">57ª Legislatura Federal</p>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex items-center gap-5 hover:shadow-md transition-shadow">
+          <div className="bg-red-50 p-4 rounded-xl text-red-600 ring-1 ring-red-100">
+            <AlertTriangle size={32} />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Inconformidades Detectadas</p>
+            <p className="text-4xl font-black text-slate-800 mt-1">{stats?.total_alertas || '-'}</p>
+            <p className="text-xs text-red-500 font-semibold mt-1">
+              {stats?.alertas_fantasma || 0} empresas suspeitas/fantasmas
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex items-center gap-5 hover:shadow-md transition-shadow">
+          <div className="bg-amber-50 p-4 rounded-xl text-amber-600 ring-1 ring-amber-100">
+            <TrendingUp size={32} />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Índice Médio de Risco</p>
+            <p className="text-4xl font-black text-slate-800 mt-1">{stats?.media_risco_geral || '-'}</p>
+            <p className="text-xs text-slate-400 mt-1">Escala forense de 0 a 100 pontos</p>
+          </div>
+        </div>
+      </div>
+
+      {/* SEÇÃO ANALÍTICA: GRÁFICOS */}
+      {chartsData && (
+        <section className="space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-6 h-6 text-blue-600" />
+              <h2 className="text-2xl font-bold text-slate-900">Gráficos Analíticos da Cota Parlamentar</h2>
+            </div>
+            <span className="text-xs font-semibold uppercase tracking-wider bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-200">
+              Dados Reais Consolidados
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Gráfico 1: Top Fornecedores */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-blue-600" />
+                    <h3 className="text-lg font-bold text-slate-800">Top Fornecedores por Volume (R$)</h3>
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">Maiores recebedores CEAP</span>
+                </div>
+                <p className="text-xs text-slate-500 mb-6">
+                  Empresas e fornecedores que mais faturaram com a cota parlamentar dos deputados auditados.
+                </p>
+
+                <div className="h-72 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={chartsData.top_fornecedores}
+                      layout="vertical"
+                      margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
+                    >
+                      <XAxis 
+                        type="number" 
+                        tickFormatter={(val) => `R$ ${(val / 1000).toFixed(0)}k`} 
+                        stroke="#94a3b8"
+                        fontSize={11}
+                      />
+                      <YAxis 
+                        type="category" 
+                        dataKey="razao_social" 
+                        stroke="#64748b" 
+                        fontSize={11}
+                        width={130}
+                        tickLine={false}
+                      />
+                      <Tooltip content={<TooltipMoeda />} />
+                      <Bar 
+                        dataKey="total" 
+                        fill="#2563eb" 
+                        radius={[0, 6, 6, 0]} 
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span>Concentração financeira da cota</span>
+                <span className="font-semibold text-slate-700">Top 6 Empresas</span>
+              </div>
+            </div>
+
+            {/* Gráfico 2: Distribuição por Categorias */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <PieChartIcon className="w-5 h-5 text-indigo-600" />
+                    <h3 className="text-lg font-bold text-slate-800">Distribuição por Categoria de Despesa</h3>
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">Divisão percentual</span>
+                </div>
+                <p className="text-xs text-slate-500 mb-4">
+                  Onde os parlamentares mais concentram o uso dos recursos públicos disponíveis.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-4">
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={chartsData.categorias_despesas.slice(0, 6)}
+                          dataKey="total"
+                          nameKey="categoria"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={85}
+                          paddingAngle={3}
+                        >
+                          {chartsData.categorias_despesas.slice(0, 6).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={CORES_CATEGORIAS[index % CORES_CATEGORIAS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<TooltipMoeda />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Legenda Resumida das Categorias */}
+                  <div className="space-y-2 pr-2">
+                    {chartsData.categorias_despesas.slice(0, 5).map((cat, idx) => (
+                      <div key={cat.categoria} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 truncate">
+                          <span 
+                            className="w-3 h-3 rounded-full flex-shrink-0" 
+                            style={{ backgroundColor: CORES_CATEGORIAS[idx % CORES_CATEGORIAS.length] }} 
+                          />
+                          <span className="text-slate-700 font-medium truncate">{cat.categoria}</span>
+                        </div>
+                        <span className="font-bold text-slate-900 ml-2">{cat.percentual}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span>Classificação oficial da CEAP</span>
+                <span className="font-semibold text-slate-700">{chartsData.categorias_despesas.length} categorias identificadas</span>
+              </div>
+            </div>
+
+            {/* Gráfico 3: Alertas por Heurística Forense */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className="w-5 h-5 text-amber-600" />
+                    <h3 className="text-lg font-bold text-slate-800">Anomalias Detectadas por Heurística</h3>
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">Fórmulas algorítmicas</span>
+                </div>
+                <p className="text-xs text-slate-500 mb-6">
+                  Frequência das anomalias encontradas nas notas fiscais auditadas (motor v4).
+                </p>
+
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={chartsData.alertas_por_tipo}
+                      layout="vertical"
+                      margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
+                    >
+                      <XAxis type="number" stroke="#94a3b8" fontSize={11} allowDecimals={false} />
+                      <YAxis 
+                        type="category" 
+                        dataKey="tipo" 
+                        stroke="#64748b" 
+                        fontSize={11}
+                        width={150}
+                        tickLine={false}
+                      />
+                      <Tooltip content={<TooltipAlerta />} />
+                      <Bar 
+                        dataKey="quantidade" 
+                        fill="#f59e0b" 
+                        radius={[0, 6, 6, 0]} 
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <Link to="/metodologia" className="text-blue-600 hover:underline font-semibold">
+                  Ver metodologia e regras detalhadas &rarr;
+                </Link>
+                <span className="font-semibold text-slate-700">{stats?.total_alertas || 0} inconformidades</span>
+              </div>
+            </div>
+
+            {/* Gráfico 4: Severidade dos Alertas */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                    <h3 className="text-lg font-bold text-slate-800">Classificação por Gravidade</h3>
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">Severidade de risco</span>
+                </div>
+                <p className="text-xs text-slate-500 mb-4">
+                  Proporção de inconformidades críticas (Alta), intermediárias (Média) e operacionais (Baixa).
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-4">
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={chartsData.severidade_alertas}
+                          dataKey="quantidade"
+                          nameKey="severidade"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={85}
+                          paddingAngle={4}
+                        >
+                          {chartsData.severidade_alertas.map((entry, index) => (
+                            <Cell key={`cell-sev-${index}`} fill={entry.cor} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<TooltipAlerta />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Cards de Resumo de Severidade */}
+                  <div className="space-y-3">
+                    {chartsData.severidade_alertas.map((sev) => (
+                      <div 
+                        key={sev.severidade} 
+                        className="p-3 rounded-xl border flex items-center justify-between"
+                        style={{ borderColor: `${sev.cor}40`, backgroundColor: `${sev.cor}10` }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: sev.cor }} />
+                          <span className="text-xs font-bold text-slate-800">{sev.severidade}</span>
+                        </div>
+                        <span className="text-base font-black" style={{ color: sev.cor }}>
+                          {sev.quantidade}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span>Critério baseado em materialidade e tipicidade</span>
+                <span className="font-semibold text-slate-700">100% auditado</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Tabela de Deputados com Ranking */}
+      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-slate-50 border-b border-slate-200 px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">Ranking de Risco de Inconformidade</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Clique em "Ver Dossiê" para auditar e inspecionar os gráficos individuais de cada parlamentar.</p>
+          </div>
+          
+          {/* Caixa de Pesquisa */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-slate-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Pesquisar nome, partido ou UF..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="pl-10 pr-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full md:w-80 sm:text-sm transition-all shadow-sm"
+            />
+          </div>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                <th className="px-6 py-4 font-semibold">Parlamentar</th>
+                <th className="px-6 py-4 font-semibold">Partido/UF</th>
+                <th className="px-6 py-4 font-semibold text-center">Índice de Risco</th>
+                <th className="px-6 py-4 font-semibold text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {currentDeputados.map((dep) => (
+                <tr key={dep.id} className="hover:bg-slate-50 transition-colors group">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-4">
+                      <img src={dep.url_foto} alt={dep.nome} className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-sm" />
+                      <div>
+                        <p className="font-bold text-slate-800 text-base">{dep.nome}</p>
+                        <p className="text-xs text-slate-400">ID Câmara: {dep.id}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                      {dep.partido} - {dep.uf}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className={`font-black text-2xl ${dep.indice_risco > 50 ? 'text-red-600' : dep.indice_risco > 20 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                        {dep.indice_risco.toFixed(1)}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <Link to={`/deputado/${dep.id}`} className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-semibold rounded-xl text-white bg-slate-900 hover:bg-slate-800 shadow-sm hover:shadow transition-all">
+                      Ver Dossiê &rarr;
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+              {currentDeputados.length === 0 && deputados.length > 0 && (
+                <tr>
+                  <td colSpan="4" className="text-center py-12 text-slate-500 font-medium">Nenhum parlamentar encontrado para a pesquisa.</td>
+                </tr>
+              )}
+              {deputados.length === 0 && (
+                <tr>
+                  <td colSpan="4" className="text-center py-12 text-slate-500 font-medium">Carregando dados da Câmara dos Deputados... Pode levar alguns instantes.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Paginação */}
+        {filteredDeputados.length > 0 && (
+          <div className="bg-white border-t border-slate-200 px-6 py-4 flex items-center justify-between">
+            <p className="text-sm text-slate-600">
+              Mostrando <span className="font-semibold">{startIndex + 1}</span> a <span className="font-semibold">{Math.min(startIndex + itemsPerPage, filteredDeputados.length)}</span> de <span className="font-semibold">{filteredDeputados.length}</span> parlamentares
+            </p>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="inline-flex items-center px-3 py-2 border border-slate-300 rounded-xl bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+              </button>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="inline-flex items-center px-3 py-2 border border-slate-300 rounded-xl bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Próxima <ChevronRight className="h-4 w-4 ml-1" />
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
