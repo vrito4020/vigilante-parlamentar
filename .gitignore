@@ -34,4 +34,7 @@ desktop.ini
 # Logs & temp
 *.log
 *.tmp
-vigilante.db-journal
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
