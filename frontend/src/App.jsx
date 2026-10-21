@@ -2,6 +2,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Home from './pages/Home'
 import DeputadoProfile from './pages/DeputadoProfile'
 import Metodologia from './pages/Metodologia'
+import MapaForense from './pages/MapaForense'
+import Comparador from './pages/Comparador'
 import Navbar from './components/Navbar'
 
 function App() {
@@ -13,6 +15,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/deputado/:id" element={<DeputadoProfile />} />
+            <Route path="/mapa" element={<MapaForense />} />
+            <Route path="/comparar" element={<Comparador />} />
             <Route path="/metodologia" element={<Metodologia />} />
           </Routes>
         </main>

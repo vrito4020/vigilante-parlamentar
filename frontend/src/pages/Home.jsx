@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { 
@@ -12,7 +12,11 @@ import {
   PieChart as PieChartIcon,
   Building2,
   ShieldAlert,
-  Coins
+  Coins,
+  Filter,
+  Scale,
+  MapPin,
+  RotateCcw
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -84,6 +88,11 @@ export default function Home() {
   const [chartsData, setChartsData] = useState(null)
   const [deputados, setDeputados] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [filtroUF, setFiltroUF] = useState('TODAS')
+  const [filtroPartido, setFiltroPartido] = useState('TODOS')
+  const [filtroFaixaRisco, setFiltroFaixaRisco] = useState('TODOS')
+  const [filtroHeuristica, setFiltroHeuristica] = useState('TODAS')
+  const [ordenacao, setOrdenacao] = useState('MAIOR_RISCO')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
   
@@ -100,12 +109,64 @@ export default function Home() {
     }).catch(err => console.error("Erro ao carregar dados:", err))
   }, [])
 
-  // Filtragem e Paginação
-  const filteredDeputados = deputados.filter(dep => 
-    dep.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    dep.partido.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    dep.uf.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Listas dinâmicas para os seletores de filtros avançados
+  const listaUFs = useMemo(() => {
+    const s = new Set(deputados.map(d => d.uf).filter(Boolean))
+    return Array.from(s).sort()
+  }, [deputados])
+
+  const listaPartidos = useMemo(() => {
+    const s = new Set(deputados.map(d => d.partido).filter(Boolean))
+    return Array.from(s).sort()
+  }, [deputados])
+
+  const listaHeuristicas = useMemo(() => {
+    const s = new Set()
+    deputados.forEach(d => {
+      (d.alertas || []).forEach(al => {
+        if (al.tipo_alerta) s.add(al.tipo_alerta)
+      })
+    })
+    return Array.from(s).sort()
+  }, [deputados])
+
+  // Filtragem Combinada e Ordenação
+  const filteredDeputados = useMemo(() => {
+    const filtrados = deputados.filter(dep => {
+      const matchBusca =
+        !searchTerm ||
+        dep.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        dep.partido.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        dep.uf.toLowerCase().includes(searchTerm.toLowerCase())
+
+      if (!matchBusca) return false
+      if (filtroUF !== 'TODAS' && dep.uf !== filtroUF) return false
+      if (filtroPartido !== 'TODOS' && dep.partido !== filtroPartido) return false
+
+      const risco = dep.indice_risco || 0
+      const qtdAlertas = (dep.alertas || []).length
+
+      if (filtroFaixaRisco === 'CRITICO_ALTO' && risco <= 50) return false
+      if (filtroFaixaRisco === 'MODERADO' && (risco <= 20 || risco > 50)) return false
+      if (filtroFaixaRisco === 'BAIXO' && (risco <= 0 || risco > 20)) return false
+      if (filtroFaixaRisco === 'JA_AUDITADOS' && risco <= 0 && qtdAlertas === 0) return false
+      if (filtroFaixaRisco === 'PENDENTES' && (risco > 0 || qtdAlertas > 0)) return false
+
+      if (filtroHeuristica !== 'TODAS') {
+        const possuiAlerta = (dep.alertas || []).some(al => al.tipo_alerta === filtroHeuristica)
+        if (!possuiAlerta) return false
+      }
+
+      return true
+    })
+
+    return [...filtrados].sort((a, b) => {
+      if (ordenacao === 'MAIOR_RISCO') return (b.indice_risco || 0) - (a.indice_risco || 0)
+      if (ordenacao === 'MAIS_ALERTAS') return ((b.alertas || []).length) - ((a.alertas || []).length)
+      if (ordenacao === 'NOME_AZ') return a.nome.localeCompare(b.nome)
+      return 0
+    })
+  }, [deputados, searchTerm, filtroUF, filtroPartido, filtroFaixaRisco, filtroHeuristica, ordenacao])
 
   const totalPages = Math.max(1, Math.ceil(filteredDeputados.length / itemsPerPage))
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -115,6 +176,23 @@ export default function Home() {
     setSearchTerm(e.target.value)
     setCurrentPage(1) // Volta para a primeira página ao pesquisar
   }
+
+  const limparFiltros = () => {
+    setSearchTerm('')
+    setFiltroUF('TODAS')
+    setFiltroPartido('TODOS')
+    setFiltroFaixaRisco('TODOS')
+    setFiltroHeuristica('TODAS')
+    setOrdenacao('MAIOR_RISCO')
+    setCurrentPage(1)
+  }
+
+  const temFiltroAtivo =
+    searchTerm !== '' ||
+    filtroUF !== 'TODAS' ||
+    filtroPartido !== 'TODOS' ||
+    filtroFaixaRisco !== 'TODOS' ||
+    filtroHeuristica !== 'TODAS'
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
@@ -415,26 +493,136 @@ export default function Home() {
         </section>
       )}
 
-      {/* Tabela de Deputados com Ranking */}
+      {/* Tabela de Deputados com Ranking e Filtros Avançados */}
       <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="bg-slate-50 border-b border-slate-200 px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-800">Ranking de Risco de Inconformidade</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Clique em "Ver Dossiê" para auditar e inspecionar os gráficos individuais de cada parlamentar.</p>
-          </div>
-          
-          {/* Caixa de Pesquisa */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-slate-400" />
+        <div className="bg-slate-50 border-b border-slate-200 px-6 py-5 space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-slate-800">Ranking de Risco de Inconformidade</h2>
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                  {filteredDeputados.length} exibidos
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Utilize os filtros combinados abaixo para cruzar UF, Partido, Faixa de Risco e Heurística Forense.
+              </p>
             </div>
-            <input
-              type="text"
-              placeholder="Pesquisar nome, partido ou UF..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              className="pl-10 pr-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full md:w-80 sm:text-sm transition-all shadow-sm"
-            />
+            
+            {/* Caixa de Pesquisa Rápida */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-slate-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Pesquisar nome, partido ou UF..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="pl-10 pr-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full md:w-80 sm:text-sm transition-all shadow-sm bg-white"
+              />
+            </div>
+          </div>
+
+          {/* Barra de Filtros Avançados (Item 4) */}
+          <div className="pt-3 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+            {/* Filtro por UF */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                Estado (UF)
+              </label>
+              <select
+                value={filtroUF}
+                onChange={(e) => { setFiltroUF(e.target.value); setCurrentPage(1); }}
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="TODAS">Todas as 27 UFs</option>
+                {listaUFs.map(uf => (
+                  <option key={uf} value={uf}>{uf}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filtro por Partido */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                Partido Político
+              </label>
+              <select
+                value={filtroPartido}
+                onChange={(e) => { setFiltroPartido(e.target.value); setCurrentPage(1); }}
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="TODOS">Todos os Partidos ({listaPartidos.length})</option>
+                {listaPartidos.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filtro por Faixa de Risco / Status de Auditoria */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                Faixa de Risco / Status
+              </label>
+              <select
+                value={filtroFaixaRisco}
+                onChange={(e) => { setFiltroFaixaRisco(e.target.value); setCurrentPage(1); }}
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="TODOS">Todos os Parlamentares</option>
+                <option value="JA_AUDITADOS">Somente Já Auditados (Risco &gt; 0)</option>
+                <option value="CRITICO_ALTO">Risco Crítico / Alto (&gt; 50 pts)</option>
+                <option value="MODERADO">Risco Moderado (20.1 a 50 pts)</option>
+                <option value="BAIXO">Risco Baixo (0.1 a 20 pts)</option>
+                <option value="PENDENTES">Aguardando Auditoria (0.0 pts)</option>
+              </select>
+            </div>
+
+            {/* Filtro por Tipo de Heurística Forense */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                Anomalia / Heurística Forense
+              </label>
+              <select
+                value={filtroHeuristica}
+                onChange={(e) => { setFiltroHeuristica(e.target.value); setCurrentPage(1); }}
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="TODAS">Todas as Heurísticas</option>
+                {listaHeuristicas.map(h => (
+                  <option key={h} value={h}>{h}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Ordenação + Botão Limpar Filtros */}
+            <div className="flex items-center gap-2">
+              <div className="flex-grow">
+                <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                  Ordenar Por
+                </label>
+                <select
+                  value={ordenacao}
+                  onChange={(e) => setOrdenacao(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="MAIOR_RISCO">Maior Índice de Risco</option>
+                  <option value="MAIS_ALERTAS">Maior Nº de Alertas</option>
+                  <option value="NOME_AZ">Ordem Alfabética (A-Z)</option>
+                </select>
+              </div>
+
+              {temFiltroAtivo && (
+                <button
+                  onClick={limparFiltros}
+                  title="Limpar todos os filtros"
+                  className="mt-5 px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold flex items-center gap-1 transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> Limpar
+                </button>
+              )}
+            </div>
           </div>
         </div>
         
@@ -444,49 +632,78 @@ export default function Home() {
               <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
                 <th className="px-6 py-4 font-semibold">Parlamentar</th>
                 <th className="px-6 py-4 font-semibold">Partido/UF</th>
+                <th className="px-6 py-4 font-semibold text-center">Alertas Detectados</th>
                 <th className="px-6 py-4 font-semibold text-center">Índice de Risco</th>
-                <th className="px-6 py-4 font-semibold text-right">Ação</th>
+                <th className="px-6 py-4 font-semibold text-right">Ações Forenses</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {currentDeputados.map((dep) => (
-                <tr key={dep.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-4">
-                      <img src={dep.url_foto} alt={dep.nome} className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-sm" />
-                      <div>
-                        <p className="font-bold text-slate-800 text-base">{dep.nome}</p>
-                        <p className="text-xs text-slate-400">ID Câmara: {dep.id}</p>
+              {currentDeputados.map((dep) => {
+                const qtdAlertas = (dep.alertas || []).length
+                return (
+                  <tr key={dep.id} className="hover:bg-slate-50 transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-4">
+                        <img src={dep.url_foto} alt={dep.nome} className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-sm" />
+                        <div>
+                          <p className="font-bold text-slate-800 text-base">{dep.nome}</p>
+                          <p className="text-xs text-slate-400">ID Câmara: {dep.id}</p>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                      {dep.partido} - {dep.uf}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <span className={`font-black text-2xl ${dep.indice_risco > 50 ? 'text-red-600' : dep.indice_risco > 20 ? 'text-amber-500' : 'text-emerald-500'}`}>
-                        {dep.indice_risco.toFixed(1)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                        {dep.partido} - {dep.uf}
                       </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <Link to={`/deputado/${dep.id}`} className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-semibold rounded-xl text-white bg-slate-900 hover:bg-slate-800 shadow-sm hover:shadow transition-all">
-                      Ver Dossiê &rarr;
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {qtdAlertas > 0 ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                          <AlertTriangle className="w-3.5 h-3.5" /> {qtdAlertas} {qtdAlertas === 1 ? 'alerta' : 'alertas'}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-medium">Sem alertas</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className={`font-black text-2xl ${dep.indice_risco > 50 ? 'text-red-600' : dep.indice_risco > 20 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                          {dep.indice_risco.toFixed(1)}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="inline-flex items-center justify-end gap-2">
+                        <Link
+                          to={`/comparar?dep1=${dep.id}`}
+                          title="Comparar lado a lado com outro deputado"
+                          className="inline-flex items-center justify-center gap-1 px-3 py-2 border border-slate-300 text-xs font-bold rounded-xl text-slate-700 bg-white hover:bg-slate-100 transition-all"
+                        >
+                          <Scale className="w-3.5 h-3.5 text-blue-600" /> Comparar
+                        </Link>
+                        <Link
+                          to={`/deputado/${dep.id}`}
+                          className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-semibold rounded-xl text-white bg-slate-900 hover:bg-slate-800 shadow-sm hover:shadow transition-all"
+                        >
+                          Ver Dossiê &rarr;
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
               {currentDeputados.length === 0 && deputados.length > 0 && (
                 <tr>
-                  <td colSpan="4" className="text-center py-12 text-slate-500 font-medium">Nenhum parlamentar encontrado para a pesquisa.</td>
+                  <td colSpan="5" className="text-center py-12 text-slate-500 font-medium">
+                    Nenhum parlamentar encontrado para a combinação de filtros selecionada.
+                  </td>
                 </tr>
               )}
               {deputados.length === 0 && (
                 <tr>
-                  <td colSpan="4" className="text-center py-12 text-slate-500 font-medium">Carregando dados da Câmara dos Deputados... Pode levar alguns instantes.</td>
+                  <td colSpan="5" className="text-center py-12 text-slate-500 font-medium">
+                    Carregando dados da Câmara dos Deputados... Pode levar alguns instantes.
+                  </td>
                 </tr>
               )}
             </tbody>
