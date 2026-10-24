@@ -1,0 +1,19 @@
+http:
+  routers:
+    vigilante-http:
+      entryPoints:
+        - http
+      rule: "Host(`vigilante.187.77.237.245.sslip.io`)"
+      service: vigilante-service
+    vigilante-https:
+      entryPoints:
+        - https
+      rule: "Host(`vigilante.187.77.237.245.sslip.io`)"
+      service: vigilante-service
+      tls:
+        certResolver: letsencrypt
+  services:
+    vigilante-service:
+      loadBalancer:
+        servers:
+          - url: "http://vigilante_frontend:80"

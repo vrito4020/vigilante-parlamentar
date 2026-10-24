@@ -444,7 +444,7 @@ export default function DeputadoProfile() {
             </div>
             <div className="mt-4 pt-4 border-t border-slate-100">
               <p className="text-xs text-slate-500">
-                Número de inconformidades flagradas pelo motor de 14 heurísticas forenses.
+                Número de inconformidades flagradas pelo motor de 25 heurísticas forenses multi-base.
               </p>
             </div>
           </div>
@@ -495,7 +495,17 @@ export default function DeputadoProfile() {
                 )}
                 <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
                   <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
-                    {alerta.tipo_heuristica === 'PATRIMONIO_ELEVADO' ? 'Fonte: TSE (DivulgaCandContas)' : 'Fonte: Câmara (CEAP) + Receita Federal'}
+                    {alerta.tipo_heuristica === 'FORNECEDOR_SANCIONADO_CEIS_CNEP' 
+                      ? 'Fonte: Controladoria-Geral da União (CGU - CEIS/CNEP)' 
+                      : alerta.tipo_heuristica === 'CONTAS_IRREGULARES_TCU'
+                      ? 'Fonte: Tribunal de Contas da União (TCU)'
+                      : alerta.tipo_heuristica === 'ASSESSOR_SOCIO_FORNECEDOR'
+                      ? 'Fonte: Folha de Pessoal da Câmara + Receita Federal (QSA)'
+                      : alerta.tipo_heuristica === 'QUID_PRO_QUO_DOADOR_CAMPANHA'
+                      ? 'Fonte: Prestação de Contas TSE + Câmara CEAP'
+                      : alerta.tipo_heuristica === 'PATRIMONIO_ELEVADO' 
+                      ? 'Fonte: TSE (DivulgaCandContas)' 
+                      : 'Fonte: Câmara (CEAP) + Receita Federal'}
                   </span>
                   {alerta.despesa_relacionada?.url_documento ? (
                     <a 

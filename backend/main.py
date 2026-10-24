@@ -95,6 +95,10 @@ def formatar_categoria(cat_raw: str) -> str:
 
 def formatar_alerta_nome(tipo_raw: str) -> str:
     mapa = {
+        "FORNECEDOR_SANCIONADO_CEIS_CNEP": "Empresa Inidônea / Sancionada (CGU CEIS/CNEP)",
+        "CONTAS_IRREGULARES_TCU": "Inidoneidade / Contas Irregulares (TCU)",
+        "ASSESSOR_SOCIO_FORNECEDOR": "Secretário de Gabinete Sócio de Fornecedor",
+        "QUID_PRO_QUO_DOADOR_CAMPANHA": "Retorno de Campanha / Doador Contratado (TSE)",
         "VINCULO_SOCIETARIO_OU_NEPOTISMO": "QSA / Vínculo Societário ou Nepotismo",
         "CNAE_INCOMPATIVEL_ESTRITO": "Incompatibilidade Estrita de CNAE",
         "SUBCAPITALIZACAO_CRITICA": "Subcapitalização Crítica (Capital Irrisório)",

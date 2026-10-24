@@ -30,7 +30,11 @@ import models
 # PESOS FORENSES (Ponderação no Índice de Risco de 0 a 100)
 # ---------------------------------------------------------------------------
 PESOS = {
+    "FORNECEDOR_SANCIONADO_CEIS_CNEP": 50,
+    "CONTAS_IRREGULARES_TCU": 45,
+    "ASSESSOR_SOCIO_FORNECEDOR": 45,
     "VINCULO_SOCIETARIO_OU_NEPOTISMO": 40,
+    "QUID_PRO_QUO_DOADOR_CAMPANHA": 35,
     "NOTA_FISCAL_EMPRESA_EXTINTA": 45,
     "NOTA_FISCAL_DUPLICADA": 35,
     "EMPRESA_RECEM_CRIADA": 35,
@@ -178,6 +182,106 @@ def rodar_motor_heuristicas_por_deputado(db: Session, deputado_id: int):
     por_cnpj = defaultdict(list)
     for d in despesas:
         por_cnpj[d.fornecedor_cnpj].append(d)
+
+    # -----------------------------------------------------------------------
+    # 0. AUDITORIA MULTI-BASE: CGU (CEIS/CNEP/CEPIM), TCU, GABINETE E TSE
+    # -----------------------------------------------------------------------
+    # 0.1 Empresas Sancionadas / Inidôneas (CEIS/CNEP/CEPIM) e Contas Irregulares TCU
+    for cnpj, lista in por_cnpj.items():
+        sancoes = db.query(models.SancaoFornecedor).filter(models.SancaoFornecedor.cnpj == cnpj).all()
+        if not sancoes:
+            continue
+        f = lista[0].fornecedor_rel
+        nome_forn = f.razao_social if f and f.razao_social else cnpj
+        total_pago = sum(d.valor for d in lista)
+
+        sancoes_tcu = [s for s in sancoes if "TCU" in (s.cadastro or "").upper() or "TRIBUNAL DE CONTAS" in (s.orgao_sancionador or "").upper()]
+        sancoes_cgu = [s for s in sancoes if s not in sancoes_tcu]
+
+        if sancoes_cgu:
+            s0 = sancoes_cgu[0]
+            alertas.append((
+                "FORNECEDOR_SANCIONADO_CEIS_CNEP", "ALTA",
+                f"Fornecedor contratado com cota parlamentar ({nome_forn} - CNPJ {cnpj}) consta no {s0.cadastro} "
+                f"({s0.categoria_sancao} — Órgão: {s0.orgao_sancionador}). Está formalmente proibido de licitar e contratar com o Poder Público. "
+                f"Total recebido da CEAP: {_brl(total_pago)}.",
+                total_pago, lista[0].id,
+            ))
+
+        if sancoes_tcu:
+            st0 = sancoes_tcu[0]
+            alertas.append((
+                "CONTAS_IRREGULARES_TCU", "ALTA",
+                f"Fornecedor ({nome_forn} - CNPJ {cnpj}) possui registro de inidoneidade / contas julgadas irregulares "
+                f"por Tribunal de Contas ({st0.orgao_sancionador} — Processo {st0.numero_processo or 'S/N'}). "
+                f"Pagamentos na cota somam {_brl(total_pago)}.",
+                total_pago, lista[0].id,
+            ))
+
+    # 0.2 Cruzamento Folha de Gabinete (Secretários Parlamentares) vs. QSA da Receita Federal
+    assessores_db = db.query(models.AssessorGabinete).filter(models.AssessorGabinete.deputado_id == dep.id).all()
+    nomes_assessores_map = {_normalizar(a.nome): a for a in assessores_db if a.nome}
+
+    if nomes_assessores_map:
+        for cnpj, lista in por_cnpj.items():
+            f = lista[0].fornecedor_rel
+            if not f or not f.qsa_nomes or _eh_utilidade(f) or _eh_cia_aerea(f):
+                continue
+            socios = [s.strip() for s in f.qsa_nomes.split(",") if s.strip()]
+            for soc in socios:
+                soc_norm = _normalizar(soc)
+                if soc_norm in nomes_assessores_map:
+                    assessor_obj = nomes_assessores_map[soc_norm]
+                    total = sum(d.valor for d in lista)
+                    alertas.append((
+                        "ASSESSOR_SOCIO_FORNECEDOR", "ALTA",
+                        f"Sócio ou administrador da empresa contratada ({f.razao_social}), Sr(a). {assessor_obj.nome}, "
+                        f"exerce cargo comissionado ({assessor_obj.cargo}) no gabinete do próprio deputado contratante ({dep.nome}). "
+                        f"Faturamento via CEAP: {_brl(total)}.",
+                        total, lista[0].id,
+                    ))
+                    break
+
+    # 0.3 Cruzamento Doações e Fornecedores de Campanha Eleitoral (TSE) vs. Fornecedores CEAP (Quid Pro Quo)
+    doacoes_db = db.query(models.DoacaoCampanha).filter(models.DoacaoCampanha.deputado_id == dep.id).all()
+    if doacoes_db:
+        doadores_por_doc = {d.cpf_cnpj_doador: d for d in doacoes_db if d.cpf_cnpj_doador}
+        doadores_por_nome = {_normalizar(d.nome_doador): d for d in doacoes_db if d.nome_doador}
+
+        for cnpj, lista in por_cnpj.items():
+            f = lista[0].fornecedor_rel
+            if _eh_utilidade(f) or _eh_cia_aerea(f):
+                continue
+            total_ceap = sum(d.valor for d in lista)
+            nome_forn = f.razao_social if f and f.razao_social else cnpj
+
+            # Match direto por CNPJ (doador ou fornecedor de campanha que passou a receber da CEAP)
+            if cnpj in doadores_por_doc:
+                d_tse = doadores_por_doc[cnpj]
+                alertas.append((
+                    "QUID_PRO_QUO_DOADOR_CAMPANHA", "ALTA" if d_tse.tipo_recurso == "DOADOR_CAMPANHA" else "MEDIA",
+                    f"Vínculo eleitoral TSE detectado: o fornecedor {nome_forn} (CNPJ {cnpj}) atuou diretamente na campanha eleitoral de 2022 "
+                    f"do parlamentar ({d_tse.tipo_recurso.replace('_', ' ')}: {_brl(d_tse.valor)}) e, após a posse, recebeu {_brl(total_ceap)} "
+                    f"em reembolsos da Cota Parlamentar (CEAP).",
+                    total_ceap, lista[0].id,
+                ))
+                continue
+
+            # Match indireto: Pessoa Física Doadora de Campanha que é Sócia (QSA) da empresa contratada na CEAP
+            if f and f.qsa_nomes:
+                socios = [s.strip() for s in f.qsa_nomes.split(",") if s.strip()]
+                for soc in socios:
+                    soc_norm = _normalizar(soc)
+                    if soc_norm in doadores_por_nome:
+                        d_tse = doadores_por_nome[soc_norm]
+                        alertas.append((
+                            "QUID_PRO_QUO_DOADOR_CAMPANHA", "ALTA",
+                            f"Retorno de campanha (Quid Pro Quo): o sócio {soc} da empresa contratada {nome_forn} "
+                            f"foi financiador direto da campanha eleitoral do parlamentar no TSE ({_brl(d_tse.valor)}) e sua empresa "
+                            f"passou a faturar {_brl(total_ceap)} na cota parlamentar.",
+                            total_ceap, lista[0].id,
+                        ))
+                        break
 
     # -----------------------------------------------------------------------
     # 1. AUDITORIA DE QUADRO SOCIETÁRIO (QSA) VS. DEPUTADO (NEPOTISMO / AUTOCONTRATAÇÃO) (ALTA)
