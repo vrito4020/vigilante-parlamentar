@@ -13,6 +13,8 @@ services:
       - "8001:8000"
     environment:
       - PYTHONUNBUFFERED=1
+    networks:
+      - default
 
   frontend:
     build:
@@ -24,3 +26,11 @@ services:
       - "3000:80"
     depends_on:
       - backend
+    networks:
+      - default
+      - coolify
+
+networks:
+  default:
+  coolify:
+    external: true
