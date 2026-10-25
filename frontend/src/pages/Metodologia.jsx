@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   ShieldCheck, Building2, Fuel, PieChart, FileText, Landmark, Clock,
   HelpCircle, Scale, ArrowLeft, Copy, TrendingDown, Filter, Zap, Compass,
-  Briefcase, MapPinCheck, Users2, CalendarDays, AlertOctagon, Flame
+  Briefcase, MapPinCheck, Users2, CalendarDays, AlertOctagon, Flame, ShieldAlert
 } from 'lucide-react'
 
 const SEV = {
@@ -14,18 +14,54 @@ const SEV = {
 
 const heuristicas = [
   {
+    id: 'FORNECEDOR_SANCIONADO_CEIS_CNEP', icon: ShieldAlert, sev: 'ALTA', peso: 50,
+    titulo: 'Fornecedor Sancionado no CEIS/CNEP (Controladoria-Geral da União - CGU)',
+    resumo: 'Fornecedor contratado com cota parlamentar consta formalmente proibido de licitar e contratar com o Poder Público por atos de corrupção ou fraude.',
+    origem: 'Controladoria-Geral da União (CGU - Bases CEIS, CNEP e CEPIM)',
+    gatilho: 'CNPJ_fornecedor IN (CEIS, CNEP, CEPIM da CGU)\nAND total_pago_ceap > 0',
+    explicacao: 'A contratação de empresas declaradas inidôneas ou suspensas por órgãos públicos municipais, estaduais ou federais viola o princípio da moralidade e a Lei Anticorrupção (Lei 12.846/13).',
+    mitigacao: 'Cruzamento diário direto com a base oficial consolidada da CGU contendo mais de 12.300 CNPJs sancionados.',
+  },
+  {
+    id: 'ASSESSOR_SOCIO_FORNECEDOR', icon: Users2, sev: 'ALTA', peso: 45,
+    titulo: 'Secretário Parlamentar de Gabinete sócio de empresa fornecedora da cota',
+    resumo: 'Servidor comissionado nomeado no próprio gabinete parlamentar figura no Quadro Societário (QSA) de empresa que recebe pagamentos da CEAP.',
+    origem: 'Câmara dos Deputados (Folha de Recursos Humanos) + Receita Federal (QSA / BrasilAPI)',
+    gatilho: 'nome_assessor_gabinete == nome_socio_QSA_fornecedor\nAND fornecedor_contratado_pelo_deputado == True',
+    explicacao: 'Indício grave de "rachadinha", autocontratação velada por interposta pessoa jurídica ou apropriação indevida da cota para remunerar assessores.',
+    mitigacao: 'Normalização estrita de nomes completos, desconsiderando homônimos comuns e comparando vínculos formais de lotação do gabinete.',
+  },
+  {
+    id: 'CONTAS_IRREGULARES_TCU', icon: Landmark, sev: 'ALTA', peso: 40,
+    titulo: 'Inidoneidade e Contas Julgadas Irregulares no TCU',
+    resumo: 'Fornecedor condenado em processo de tomada de contas especial no Tribunal de Contas da União com declaração formal de inidoneidade.',
+    origem: 'Tribunal de Contas da União (TCU - Cadastro de Inidôneos e Inabilitados)',
+    gatilho: 'CNPJ_fornecedor IN cadastro_inidoneos_TCU\nAND total_pago_ceap > 0',
+    explicacao: 'Condenação por tribunal de contas federal por desvio comprovado de recursos públicos ou superfaturamento em contratos federais.',
+    mitigacao: 'Indexação exclusiva de acórdãos condenatórios transitados em julgado com efeitos vigentes de inidoneidade.',
+  },
+  {
+    id: 'QUID_PRO_QUO_DOADOR_CAMPANHA', icon: Scale, sev: 'ALTA', peso: 35,
+    titulo: 'Retorno de Campanha / Quid Pro Quo (Doador de Campanha Contratado via CEAP)',
+    resumo: 'Fornecedor que realizou doações vultosas para a campanha eleitoral do deputado e, após a posse, passa a receber pagamentos recorrentes da cota.',
+    origem: 'Tribunal Superior Eleitoral (TSE - Doações e Prestação de Contas) + Câmara (CEAP)',
+    gatilho: 'cpf_cnpj_doador == cnpj_fornecedor_ceap\nAND valor_doado >= R$ 5.000,00\nAND total_recebido_ceap >= R$ 10.000,00',
+    explicacao: 'Forte indício de favorecimento, restituição financeira de doação eleitoral com verba pública de custeio parlamentar e violação da impessoalidade.',
+    mitigacao: 'Piso mínimo de materialidade financeira na doação (R$ 5.000) e na despesa (R$ 10.000) para evitar pequenos prestadores pontuais.',
+  },
+  {
     id: 'VINCULO_SOCIETARIO_OU_NEPOTISMO', icon: Users2, sev: 'ALTA', peso: 40,
     titulo: 'Quadro Societário (QSA) com vínculo de parentesco / autocontratação',
     resumo: 'Sócio ou administrador da empresa contratada no QSA da Receita Federal compartilha nome civil ou sobrenome familiar direto com o parlamentar.',
     origem: 'Receita Federal (QSA / BrasilAPI) + Câmara dos Deputados (Cadastro Parlamentar)',
     gatilho: 'nome_socio == nome_civil_deputado\nOR (sobrenome_familiar_socio == sobrenome_deputado AND fornecedor NOT IN (concessionárias, cias aéreas))\nAND total_contrato >= R$ 3.000,00',
-    explicacao: 'Indício grave de favorecimento familiar, autocontratação velada por meio de pessoa jurídica ou direcionamento da cota para empresas de assessores/parentes.',
+    explicacao: 'Indício grave de favorecimento familiar, autocontratação velada por meio de pessoa jurídica ou direcionamento da cota para empresas de parentes.',
     mitigacao: 'Filtra e desconsidera sobrenomes patronímicos extremamente comuns (ex: Silva, Santos, Souza, Oliveira) para evitar falsos positivos acidentais.',
   },
   {
     id: 'CNAE_INCOMPATIVEL_ESTRITO', icon: AlertOctagon, sev: 'ALTA', peso: 35,
     titulo: 'Incompatibilidade estrita de CNAE com serviços intelectuais',
-    resumo: 'Despesa de divulgação parlamentar ou consultoria faturada por empresa cujo ramo na Receita é de vestuário, mecânica, salão de beleza, açougue ou construção.',
+    resumo: 'Despesa de divulgação parlamentar ou consultoria faturada por empresa cujo ramo na Receita é de vestuário, mecânica, estética, açougue ou construção.',
     origem: 'Câmara dos Deputados (CEAP) + Receita Federal (CNAE Primário e Secundário)',
     gatilho: 'categoria IN (divulgação, consultoria, assessoria, pesquisa)\nAND CNAE IN (roupas, calçados, estética, oficina mecânica, alvenaria, bar, açougue, combustíveis)\nAND total >= R$ 2.000,00',
     explicacao: 'Demonstra incompatibilidade absoluta entre a atividade econômica real da empresa e o serviço abstrato declarado, sugerindo desvio de finalidade ou nota fiscal forjada.',
@@ -135,9 +171,9 @@ const heuristicas = [
     titulo: 'Nota fiscal idêntica apresentada mais de uma vez',
     resumo: 'O mesmo número de documento fiscal do mesmo fornecedor apresentado em pedidos separados de reembolso.',
     origem: 'Câmara dos Deputados (CEAP)',
-    gatilho: 'mesmo CNPJ AND mesmo numero_documento\nAND ocorrencias >= 2 AND valor >= R$ 100,00',
-    explicacao: 'Reembolso em duplicidade utilizando o mesmo fato gerador e a mesma nota fiscal emitida.',
-    mitigacao: 'Companhias aéreas são isentas porque bilhetes múltiplos compartilham o código de localizador da agência corporativa da Câmara.',
+    gatilho: 'mesmo fornecedor AND mesmo numero_documento AND contagem >= 2',
+    explicacao: 'Cobrança duplicada pelo mesmo fato gerador de despesa, gerando duplo reembolso público.',
+    mitigacao: 'Apenas notas com exatamente o mesmo número e mesmo CNPJ de emitente são computadas.',
   },
   {
     id: 'POSSIVEL_DUPLICIDADE', icon: Copy, sev: 'BAIXA', peso: 10,
@@ -195,11 +231,11 @@ const heuristicas = [
   },
   {
     id: 'PATRIMONIO_ELEVADO', icon: Landmark, sev: 'BAIXA', peso: 5,
-    titulo: 'Patrimônio declarado elevado (TSE 2022)',
+    titulo: 'Patrimônio declarado elevado (TSE)',
     resumo: 'Patrimônio oficial pessoal declarado à Justiça Eleitoral superior a R$ 10 milhões.',
-    origem: 'Tribunal Superior Eleitoral - TSE (DivulgaCandContas 2022)',
-    gatilho: 'patrimonio_declarado_2022 > R$ 10.000.000,00',
-    explicacao: 'Ter patrimônio elevado não constitui qualquer irregularidade jurídica. Funciona como linha de base oficial para fiscalização e acompanhamento da compatibilidade econômico-financeira entre mandatos.',
+    origem: 'Tribunal Superior Eleitoral - TSE (DivulgaCandContas)',
+    gatilho: 'patrimonio_declarado > R$ 10.000.000,00',
+    explicacao: 'Ter patrimônio elevado não constitui irregularidade jurídica. Funciona como linha de base oficial para fiscalização e acompanhamento da evolução patrimonial.',
     mitigacao: 'Severidade Baixa com peso simbólico de 5 pontos, estritamente informativo.',
   },
 ]
@@ -213,11 +249,11 @@ export default function Metodologia() {
 
       <header className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 mb-4">
-          <ShieldCheck className="w-4 h-4" /> Metodologia Forense v6 (21 Heurísticas Ativas)
+          <ShieldCheck className="w-4 h-4" /> Metodologia Forense v7 (25 Heurísticas Multi-Bases Ativas)
         </div>
         <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-3">Critérios de Auditoria & Fórmulas Forenses</h1>
         <p className="text-slate-600 text-lg leading-relaxed max-w-3xl">
-          O <strong>Vigilante Parlamentar</strong> realiza fiscalização cívica automatizada cruzando dados da <strong>Câmara dos Deputados (CEAP)</strong>, <strong>Receita Federal (BrasilAPI/QSA)</strong> e <strong>Tribunal Superior Eleitoral (TSE)</strong>, aplicando filtros rigorosos de materialidade financeira e eliminação de falsos positivos.
+          O <strong>Vigilante Parlamentar</strong> realiza fiscalização cívica automatizada cruzando dados da <strong>Câmara dos Deputados (CEAP)</strong>, <strong>Controladoria-Geral da União (CGU - CEIS/CNEP)</strong>, <strong>Folha de Recursos Humanos da Câmara</strong>, <strong>Receita Federal (BrasilAPI/QSA)</strong> e <strong>Tribunal Superior Eleitoral (TSE)</strong>, aplicando filtros rigorosos de materialidade financeira e eliminação de falsos positivos.
         </p>
       </header>
 
@@ -255,7 +291,7 @@ export default function Metodologia() {
           Cada inconformidade detectada pelo motor forense adiciona pontos de penalidade proporcionais à sua gravidade até o limite de 100 pontos.
         </p>
         <code className="block bg-slate-800 text-emerald-400 p-3 rounded-xl text-xs font-mono mb-6">
-          indice_risco = min(100.0, Σ [ peso_regra × min(1 + 0.25 × (ocorrências − 1), 1.5) ])
+          indice_risco = min(100.0, ∑ [ peso_regra × min(1 + 0.25 × (ocorrências - 1), 1.5) ])
         </code>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-slate-800/80 border border-slate-700 p-5 rounded-xl">
@@ -271,7 +307,7 @@ export default function Metodologia() {
           <div className="bg-slate-800/80 border border-slate-700 p-5 rounded-xl">
             <span className="text-red-400 font-bold text-xs uppercase tracking-wider block mb-1">51 a 100 pontos</span>
             <p className="text-xl font-black mb-1">Risco Alto (Crítico)</p>
-            <p className="text-slate-400 text-xs">Indícios graves: nepotismo em QSA, empresas extintas, recém-abertas casulo, estouro de teto de MEI ou teletransporte físico.</p>
+            <p className="text-slate-400 text-xs">Indícios graves: fornecedor inidôneo na CGU/TCU, secretário sócio de fornecedor, empresas extintas ou teletransporte físico.</p>
           </div>
         </div>
       </section>
@@ -279,7 +315,7 @@ export default function Metodologia() {
       {/* Regras */}
       <section className="space-y-6">
         <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-          <h2 className="text-2xl font-bold text-slate-900">Catálogo das 21 Heurísticas Forenses Ativas</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Catálogo das 25 Heurísticas Forenses Ativas</h2>
           <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-3 py-1 rounded-full border border-slate-200">
             Auditoria Contínua
           </span>
@@ -300,7 +336,7 @@ export default function Metodologia() {
                     </div>
                   </div>
                   <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider self-start whitespace-nowrap ${s.badge}`}>
-                    {h.sev === 'MEDIA' ? 'Média' : h.sev === 'ALTA' ? 'Alta' : 'Baixa'} · {h.peso} pts
+                    {h.sev === 'MEDIA' ? 'Média' : h.sev === 'ALTA' ? 'Alta' : 'Baixa'} — {h.peso} pts
                   </span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100 text-sm">
@@ -310,7 +346,7 @@ export default function Metodologia() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Base de Dados Consultada</p>
-                    <p className="text-slate-700 font-semibold bg-slate-50 p-3 rounded-xl border border-slate-100">🏛️ {h.origem}</p>
+                    <p className="text-slate-700 font-semibold bg-slate-50 p-3 rounded-xl border border-slate-100">{h.origem}</p>
                   </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-600">

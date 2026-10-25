@@ -7,6 +7,7 @@ from collections import defaultdict
 import math
 
 import models, schemas, database, pipeline
+from integracoes import cgu, pessoal_camara
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -278,6 +279,9 @@ def get_dashboard_charts(db: Session = Depends(database.get_db)):
 @app.get("/api/deputados", response_model=List[schemas.Deputado])
 def list_deputados(db: Session = Depends(database.get_db)):
     deputados = db.query(models.Deputado).order_by(desc(models.Deputado.indice_risco)).all()
+    for d in deputados:
+        d.total_assessores = len(d.assessores) if d.assessores else 0
+        d.possui_sancao_cgu = any(a.tipo_heuristica == 'FORNECEDOR_SANCIONADO_CEIS_CNEP' for a in d.alertas) if d.alertas else False
     return deputados
 
 @app.get("/api/deputados/{id}", response_model=schemas.Deputado)
@@ -285,8 +289,22 @@ def get_deputado(id: int, db: Session = Depends(database.get_db)):
     deputado = db.query(models.Deputado).filter(models.Deputado.id == id).first()
     if not deputado:
         raise HTTPException(status_code=404, detail="Deputado não encontrado")
-    return deputado
 
+    cnpjs_fornecedores = [
+        c[0] for c in db.query(models.DespesaCEAP.fornecedor_cnpj)
+        .filter(models.DespesaCEAP.deputado_id == id)
+        .distinct().all() if c[0]
+    ]
+    if cnpjs_fornecedores:
+        deputado.sancoes = db.query(models.SancaoFornecedor).filter(
+            models.SancaoFornecedor.cnpj.in_(cnpjs_fornecedores)
+        ).all()
+    else:
+        deputado.sancoes = []
+
+    deputado.total_assessores = len(deputado.assessores) if deputado.assessores else 0
+    deputado.possui_sancao_cgu = any(a.tipo_heuristica == 'FORNECEDOR_SANCIONADO_CEIS_CNEP' for a in deputado.alertas) if deputado.alertas else False
+    return deputado
 @app.get("/api/deputados/{id}/analytics")
 def get_deputado_analytics(id: int, db: Session = Depends(database.get_db)):
     deputado = db.query(models.Deputado).filter(models.Deputado.id == id).first()
@@ -391,6 +409,11 @@ async def analisar_deputado(id: int, db: Session = Depends(database.get_db)):
     
     await pipeline.extract_despesas_reais(db, id)
     await pipeline.extract_patrimonio_real_por_deputado(db, id)
+    try:
+        await cgu.sincronizar_sancoes_fornecedores_deputado(db, id)
+        await pessoal_camara.sincronizar_assessores_deputado(db, id)
+    except Exception as e:
+        print(f"[Aviso] Erro ao sincronizar novas fontes para deputado {id}: {e}")
     pipeline.rodar_motor_heuristicas_por_deputado(db, id)
     
     return {"message": "Análise concluída com sucesso"}

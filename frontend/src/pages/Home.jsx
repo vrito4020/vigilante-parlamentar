@@ -97,7 +97,6 @@ export default function Home() {
   const itemsPerPage = 20
   
   useEffect(() => {
-    // Busca estatísticas, lista de deputados e dados analíticos para os gráficos
     Promise.all([
       axios.get(`${API_URL}/api/dashboard/stats`),
       axios.get(`${API_URL}/api/deputados`),
@@ -124,7 +123,8 @@ export default function Home() {
     const s = new Set()
     deputados.forEach(d => {
       (d.alertas || []).forEach(al => {
-        if (al.tipo_alerta) s.add(al.tipo_alerta)
+        const tipo = al.tipo_heuristica || al.tipo_alerta
+        if (tipo) s.add(tipo)
       })
     })
     return Array.from(s).sort()
@@ -153,7 +153,7 @@ export default function Home() {
       if (filtroFaixaRisco === 'PENDENTES' && (risco > 0 || qtdAlertas > 0)) return false
 
       if (filtroHeuristica !== 'TODAS') {
-        const possuiAlerta = (dep.alertas || []).some(al => al.tipo_alerta === filtroHeuristica)
+        const possuiAlerta = (dep.alertas || []).some(al => (al.tipo_heuristica || al.tipo_alerta) === filtroHeuristica)
         if (!possuiAlerta) return false
       }
 
@@ -174,7 +174,7 @@ export default function Home() {
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value)
-    setCurrentPage(1) // Volta para a primeira página ao pesquisar
+    setCurrentPage(1)
   }
 
   const limparFiltros = () => {
@@ -199,10 +199,24 @@ export default function Home() {
       <header className="mb-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Painel de Monitoramento & Auditoria</h1>
-            <p className="text-slate-600 text-lg mt-1">
-              Auditoria cívica em tempo real dos gastos da Cota Parlamentar (CEAP) cruzados com Receita Federal e TSE.
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Painel de Monitoramento & Auditoria Forense</h1>
+            <p className="text-slate-600 text-base mt-1">
+              Auditoria cívica em tempo real dos gastos da Cota Parlamentar (CEAP) cruzados com <strong>CGU (CEIS/CNEP)</strong>, <strong>Folha da Câmara (Assessores)</strong>, <strong>Receita Federal (QSA)</strong> e <strong>TSE</strong>.
             </p>
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                🚨 CGU / CEIS / CNEP Integrados
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                👥 Folha de Pessoal da Câmara
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                ⚖️ Tribunal de Contas da União (TCU)
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                🗳️ TSE Doações & Patrimônio
+              </span>
+            </div>
           </div>
           {chartsData?.total_volume_financeiro > 0 && (
             <div className="bg-emerald-50 border border-emerald-200 px-4 py-2.5 rounded-xl flex items-center gap-2 self-start md:self-auto shadow-sm">
@@ -356,7 +370,6 @@ export default function Home() {
                     </ResponsiveContainer>
                   </div>
 
-                  {/* Legenda Resumida das Categorias */}
                   <div className="space-y-2 pr-2">
                     {chartsData.categorias_despesas.slice(0, 5).map((cat, idx) => (
                       <div key={cat.categoria} className="flex items-center justify-between text-xs">
@@ -390,7 +403,7 @@ export default function Home() {
                   <span className="text-xs text-slate-400 font-medium">Fórmulas algorítmicas</span>
                 </div>
                 <p className="text-xs text-slate-500 mb-6">
-                  Frequência das anomalias encontradas nas notas fiscais auditadas (motor v4).
+                  Frequência das anomalias encontradas nas notas fiscais auditadas (motor forense v4).
                 </p>
 
                 <div className="h-64 w-full">
@@ -464,7 +477,6 @@ export default function Home() {
                     </ResponsiveContainer>
                   </div>
 
-                  {/* Cards de Resumo de Severidade */}
                   <div className="space-y-3">
                     {chartsData.severidade_alertas.map((sev) => (
                       <div 
@@ -524,9 +536,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Barra de Filtros Avançados (Item 4) */}
+          {/* Barra de Filtros Avançados */}
           <div className="pt-3 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-            {/* Filtro por UF */}
             <div>
               <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
                 Estado (UF)
@@ -543,7 +554,6 @@ export default function Home() {
               </select>
             </div>
 
-            {/* Filtro por Partido */}
             <div>
               <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
                 Partido Político
@@ -560,7 +570,6 @@ export default function Home() {
               </select>
             </div>
 
-            {/* Filtro por Faixa de Risco / Status de Auditoria */}
             <div>
               <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
                 Faixa de Risco / Status
@@ -579,7 +588,6 @@ export default function Home() {
               </select>
             </div>
 
-            {/* Filtro por Tipo de Heurística Forense */}
             <div>
               <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
                 Anomalia / Heurística Forense
@@ -596,7 +604,6 @@ export default function Home() {
               </select>
             </div>
 
-            {/* Ordenação + Botão Limpar Filtros */}
             <div className="flex items-center gap-2">
               <div className="flex-grow">
                 <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
@@ -640,6 +647,9 @@ export default function Home() {
             <tbody className="divide-y divide-slate-100">
               {currentDeputados.map((dep) => {
                 const qtdAlertas = (dep.alertas || []).length
+                const possuiSancaoCGU = dep.possui_sancao_cgu || dep.alertas?.some(a => a.tipo_heuristica === 'FORNECEDOR_SANCIONADO_CEIS_CNEP')
+                const totalAssessores = dep.total_assessores || dep.assessores?.length || 0
+
                 return (
                   <tr key={dep.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4">
@@ -647,7 +657,19 @@ export default function Home() {
                         <img src={dep.url_foto} alt={dep.nome} className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-sm" />
                         <div>
                           <p className="font-bold text-slate-800 text-base">{dep.nome}</p>
-                          <p className="text-xs text-slate-400">ID Câmara: {dep.id}</p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                            <span className="text-xs text-slate-400">ID: {dep.id}</span>
+                            {possuiSancaoCGU && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-100 text-red-800 border border-red-300">
+                                🚨 Sancionado CGU
+                              </span>
+                            )}
+                            {totalAssessores > 0 && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                👥 {totalAssessores} assessores
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>

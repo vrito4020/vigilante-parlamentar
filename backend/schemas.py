@@ -11,6 +11,8 @@ class DeputadoBase(BaseModel):
     patrimonio_declarado: Optional[float] = None
     indice_risco: float = 0.0
     nome_civil: Optional[str] = None
+    total_assessores: Optional[int] = 0
+    possui_sancao_cgu: Optional[bool] = False
 
 
 class DeputadoCreate(DeputadoBase):
@@ -90,6 +92,44 @@ class Deputado(DeputadoBase):
     alertas: List[Alerta] = []
     assessores: List[AssessorGabineteSchema] = []
     doacoes_campanha: List[DoacaoCampanhaSchema] = []
+    sancoes: List[SancaoFornecedorSchema] = []
+
+    class Config:
+        from_attributes = True
+
+
+class FornecedorBase(BaseModel):
+    cnpj: str
+    razao_social: str
+    situacao_cadastral: str
+    data_situacao_cadastral: Optional[str] = None
+    cnae_fiscal_descricao: Optional[str] = None
+    cnaes_secundarios: Optional[str] = None
+    municipio: Optional[str] = None
+    uf: Optional[str] = None
+    capital_social: Optional[float] = None
+    data_inicio_atividade: Optional[str] = None
+    opcao_pelo_mei: Optional[bool] = False
+    qsa_nomes: Optional[str] = None
+
+
+class Fornecedor(FornecedorBase):
+    sancoes: List[SancaoFornecedorSchema] = []
+
+    class Config:
+        from_attributes = True
+
+
+class DespesaCEAP(BaseModel):
+    id: int
+    deputado_id: int
+    fornecedor_cnpj: Optional[str] = None
+    data: date
+    valor: float
+    tipo_despesa: str
+    numero_documento: Optional[str] = None
+    url_documento: Optional[str] = None
+    fornecedor_rel: Optional[Fornecedor] = None
 
     class Config:
         from_attributes = True
