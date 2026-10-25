@@ -69,7 +69,37 @@ async def _consultar_datajud_tre(uf: str, num_processo: str) -> dict:
     return {}
 
 
+def _load_radar_cache() -> dict:
+    global _MEM_RADAR_CACHE
+    if _MEM_RADAR_CACHE is not None:
+        return _MEM_RADAR_CACHE
+    if os.path.exists(RADAR_CACHE_FILE):
+        try:
+            with open(RADAR_CACHE_FILE, "r", encoding="utf-8") as f:
+                _MEM_RADAR_CACHE = json.load(f)
+                return _MEM_RADAR_CACHE
+        except Exception:
+            pass
+    _MEM_RADAR_CACHE = {}
+    return _MEM_RADAR_CACHE
+
+
+def _save_radar_cache(cache: dict):
+    global _MEM_RADAR_CACHE
+    _MEM_RADAR_CACHE = cache
+    try:
+        with open(RADAR_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
 async def _buscar_candidato_tse_detalhado(dep: models.Deputado) -> dict:
+    cache = _load_radar_cache()
+    key = str(dep.id)
+    if key in cache and cache[key]:
+        return cache[key]
+
     uf = (dep.uf or "").upper()
     if not uf:
         return {}
@@ -115,7 +145,17 @@ async def _buscar_candidato_tse_detalhado(dep: models.Deputado) -> dict:
                 f"{TSE_API_URL}/candidatura/buscar/2022/{uf}/{TSE_ELEICAO_ID}/candidato/{cand_id}"
             )
             if r_det.status_code == 200:
-                return r_det.json()
+                dados = r_det.json()
+                resumo_cache = {
+                    "id": dados.get("id"),
+                    "nomeCompleto": dados.get("nomeCompleto"),
+                    "numeroProcesso": dados.get("numeroProcesso"),
+                    "numeroProcessoPrestContas": dados.get("numeroProcessoPrestContas"),
+                    "arquivos": dados.get("arquivos", []),
+                }
+                cache[key] = resumo_cache
+                _save_radar_cache(cache)
+                return resumo_cache
         except Exception as e:
             print(f"  [Radar TSE] Aviso ao buscar detalhes do candidato {cand_id}: {e}")
     return {}
