@@ -266,7 +266,7 @@ export default function Home() {
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Índice Médio de Risco</p>
             <p className="text-4xl font-black text-slate-800 mt-1">{stats?.media_risco_geral || '-'}</p>
-            <p className="text-xs text-slate-400 mt-1">Escala forense de 0 a 100 pontos</p>
+            <p className="text-xs text-slate-400 mt-1">Score acumulado por infrações (sem limite)</p>
           </div>
         </div>
       </div>

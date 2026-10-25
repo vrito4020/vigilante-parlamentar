@@ -16,7 +16,7 @@ Princípios Forenses Adotados:
      - Conflito de Presença em Plenário (Gastos presenciais no estado de origem em dias de votações deliberativas)
      - Anomalia de Fim de Ano / "Queima de Cota" (Picos > 200% em nov/dez para esgotar a CEAP)
      - Rede / Cartel de Fornecedores Partidários (Mesmo fornecedor atendendo múltiplos deputados do mesmo partido)
-  5. PONTUAÇÃO BALANCEADA: Índice de Risco de 0 a 100 com teto de 1,5x por regra reincidente.
+  5. PONTUAÇÃO CUMULATIVA: Índice de Risco cumulativo sem limite artificial, refletindo a gravidade total de todas as infrações.
 """
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 import models
 
 # ---------------------------------------------------------------------------
-# PESOS FORENSES (Ponderação no Índice de Risco de 0 a 100)
+# PESOS FORENSES (Ponderação no Índice de Risco Cumulativo)
 # ---------------------------------------------------------------------------
 PESOS = {
     "FORNECEDOR_SANCIONADO_CEIS_CNEP": 50,
@@ -1072,7 +1072,7 @@ def rodar_motor_heuristicas_por_deputado(db: Session, deputado_id: int):
             ))
 
     # -----------------------------------------------------------------------
-    # PERSISTÊNCIA NO BANCO & CÁLCULO DO ÍNDICE DE RISCO (0 a 100)
+    # PERSISTÊNCIA NO BANCO & CÁLCULO DO ÍNDICE DE RISCO ACUMULADO (SEM LIMITE)
     # -----------------------------------------------------------------------
     contagem = defaultdict(int)
     for tipo, sev, desc, valor, desp_id in alertas:
@@ -1092,5 +1092,5 @@ def rodar_motor_heuristicas_por_deputado(db: Session, deputado_id: int):
         # Reincidência controlada: soma gradual de 25% com teto de 1,5x por regra
         risco += peso * min(1 + 0.25 * (n - 1), 1.5)
 
-    dep.indice_risco = round(min(100.0, risco), 1)
+    dep.indice_risco = round(risco, 1)
     db.commit()

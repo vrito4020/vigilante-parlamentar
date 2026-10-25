@@ -447,13 +447,13 @@ export default function Metodologia() {
       {/* Escala */}
       <section className="bg-slate-900 text-white rounded-2xl p-8 shadow-md">
         <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
-          <Scale className="text-amber-400 w-5 h-5" /> Cálculo do Índice de Risco (0 a 100 pontos)
+          <Scale className="text-amber-400 w-5 h-5" /> Cálculo do Índice de Risco Cumulativo (Sem Limite Artificial)
         </h2>
         <p className="text-slate-300 text-sm mb-4 max-w-3xl">
-          Cada inconformidade detectada pelo motor forense adiciona pontos de penalidade proporcionais à sua gravidade até o limite de 100 pontos.
+          Cada inconformidade detectada pelo motor forense adiciona pontos de penalidade proporcionais à sua gravidade de forma puramente cumulativa, sem limite ou teto artificial de 100 pontos, permitindo mensurar a real gravidade e o acúmulo total de infrações do parlamentar.
         </p>
         <code className="block bg-slate-800 text-emerald-400 p-3 rounded-xl text-xs font-mono mb-6">
-          indice_risco = min(100.0, ∑ [ peso_regra × min(1 + 0.25 × (ocorrências - 1), 1.5) ])
+          indice_risco = ∑ [ peso_regra × min(1 + 0.25 × (ocorrências - 1), 1.5) ]
         </code>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-slate-800/80 border border-slate-700 p-5 rounded-xl">
@@ -467,9 +467,9 @@ export default function Metodologia() {
             <p className="text-slate-400 text-xs">Presença de anomalias setoriais, monopólios acima de 30% ou despesas atípicas em postos e fornecedores.</p>
           </div>
           <div className="bg-slate-800/80 border border-slate-700 p-5 rounded-xl">
-            <span className="text-red-400 font-bold text-xs uppercase tracking-wider block mb-1">51 a 100 pontos</span>
-            <p className="text-xl font-black mb-1">Risco Alto (Crítico)</p>
-            <p className="text-slate-400 text-xs">Indícios graves: fornecedor inidôneo na CGU/TCU, secretário sócio de fornecedor, empresas extintas ou teletransporte físico.</p>
+            <span className="text-red-400 font-bold text-xs uppercase tracking-wider block mb-1">Acima de 50 pontos (Sem Teto)</span>
+            <p className="text-xl font-black mb-1">Risco Alto / Crítico</p>
+            <p className="text-slate-400 text-xs">Indícios graves acumulados: fornecedor inidôneo na CGU/TCU, processos no CNJ DataJud, servidores no CEAF/DOU, empresas de fachada, nepotismo cruzado ou teletransporte físico.</p>
           </div>
         </div>
       </section>

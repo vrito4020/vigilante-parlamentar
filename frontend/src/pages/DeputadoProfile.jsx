@@ -255,7 +255,7 @@ export default function DeputadoProfile() {
               <span className={`text-4xl font-black ${deputado.indice_risco > 50 ? 'text-red-600' : deputado.indice_risco > 20 ? 'text-amber-500' : 'text-emerald-500'}`}>
                 {deputado.indice_risco.toFixed(1)}
               </span>
-              <span className="text-slate-400 font-semibold pb-1 text-sm">/ 100 pontos</span>
+              <span className="text-slate-400 font-semibold pb-1 text-sm">pontos acumulados</span>
             </div>
           </div>
         </div>
