@@ -23,6 +23,7 @@ class Deputado(Base):
     favorecidos_emendas = relationship("FavorecidoEmenda", back_populates="deputado")
     contratos_pncp = relationship("ContratoPublicoPNCP", back_populates="deputado")
     dossies_fornecedores = relationship("DossieFornecedorGabinete", back_populates="deputado")
+    vinculos_nepotismo = relationship("VinculoGabineteNepotismo", back_populates="deputado")
 
 
 class Fornecedor(Base):
@@ -211,6 +212,27 @@ class DossieFornecedorGabinete(Base):
     detalhe_indicio = Column(String, nullable=True)
 
     deputado = relationship("Deputado", back_populates="dossies_fornecedores")
+
+
+class VinculoGabineteNepotismo(Base):
+    __tablename__ = "vinculos_gabinete_nepotismo"
+
+    id = Column(Integer, primary_key=True, index=True)
+    deputado_id = Column(Integer, ForeignKey("deputados.id"), index=True)
+    assessor_nome = Column(String, index=True)
+    assessor_cargo = Column(String, nullable=True)
+    tipo_vinculo = Column(String)
+    gravidade = Column(String, default="ALTA")
+    sobrenome_conexao = Column(String, nullable=True)
+    parlamentar_ou_empresa_alvo = Column(String)
+    esfera_alvo = Column(String, nullable=True)
+    uf_alvo = Column(String, nullable=True)
+    partido_alvo = Column(String, nullable=True)
+    detalhe_completo = Column(String)
+    remuneracao_url = Column(String, nullable=True)
+
+    deputado = relationship("Deputado", back_populates="vinculos_nepotismo")
+
 
 
 

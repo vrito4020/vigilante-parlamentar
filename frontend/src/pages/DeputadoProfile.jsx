@@ -131,6 +131,12 @@ export default function DeputadoProfile() {
   const dossiesFornecedores = deputado.dossies_fornecedores || []
   const fornecedoresSuspeitos = dossiesFornecedores.filter(df => df.indicio_cartel_ou_fantasma)
   const fornecedoresSubcap = dossiesFornecedores.filter(df => (df.capital_social || 0) <= 3000)
+  const vinculosNepotismo = deputado.vinculos_nepotismo || []
+  const vinculosPorAssessor = {}
+  vinculosNepotismo.forEach(v => {
+    if (!vinculosPorAssessor[v.assessor_nome]) vinculosPorAssessor[v.assessor_nome] = []
+    vinculosPorAssessor[v.assessor_nome].push(v)
+  })
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
@@ -206,6 +212,11 @@ export default function DeputadoProfile() {
             {fornecedoresSuspeitos.length > 0 && (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-900 border border-orange-300">
                 🏢 {fornecedoresSuspeitos.length} Sede(s) / Rede Suspeita
+              </span>
+            )}
+            {vinculosNepotismo.length > 0 && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-900 border border-rose-300">
+                🧬 {vinculosNepotismo.length} Vínculo(s) Nepotismo / TSE
               </span>
             )}
             {temSancoes && (
@@ -336,11 +347,13 @@ export default function DeputadoProfile() {
           onClick={() => setActiveTab('gabinete')}
           className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 ${
             activeTab === 'gabinete'
-              ? 'bg-slate-900 text-white shadow-sm'
+              ? 'bg-rose-700 text-white shadow-sm'
+              : vinculosNepotismo.length > 0
+              ? 'text-rose-800 bg-rose-50 hover:bg-rose-100 font-extrabold border border-rose-200'
               : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
-          <Users className="w-4 h-4" /> Pessoal de Gabinete ({assessores.length})
+          <Users className="w-4 h-4" /> Gabinete & Nepotismo ({assessores.length}) {vinculosNepotismo.length > 0 && '🧬'}
         </button>
         <button
           onClick={() => setActiveTab('sancoes')}
@@ -636,17 +649,98 @@ export default function DeputadoProfile() {
         </section>
       )}
 
-      {/* CONTEÚDO DA ABA 3: PESSOAL DE GABINETE & SECRETÁRIOS PARLAMENTARES */}
+      {/* CONTEÚDO DA ABA 3: PESSOAL DE GABINETE, NEPOTISMO CRUZADO (CÂMARA × SENADO) & RACHADINHA TSE */}
       {activeTab === 'gabinete' && (
-        <section className="space-y-6 animate-in fade-in duration-300">
+        <section className="space-y-8 animate-in fade-in duration-300">
+          {/* KPIs do Bloco 4 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">Secretários na Folha</p>
+              <p className="text-2xl font-black text-blue-700 mt-1">{assessores.length} nomeados</p>
+              <p className="text-xs text-slate-400 mt-0.5">Cargos comissionados ativos</p>
+            </div>
+            <div className={`p-5 rounded-2xl border shadow-sm ${vinculosNepotismo.filter(v => v.tipo_vinculo.includes('NEPOTISMO')).length > 0 ? 'bg-rose-50 border-rose-300' : 'bg-slate-50 border-slate-200'}`}>
+              <p className="text-xs font-bold uppercase text-rose-800 tracking-wider">🧬 Nepotismo Direto / Cruzado</p>
+              <p className="text-2xl font-black text-rose-950 mt-1">
+                {vinculosNepotismo.filter(v => v.tipo_vinculo.includes('NEPOTISMO')).length} {vinculosNepotismo.filter(v => v.tipo_vinculo.includes('NEPOTISMO')).length === 1 ? 'vínculo' : 'vínculos'}
+              </p>
+              <p className="text-xs text-rose-700 mt-0.5">Câmara × Senado × Bancada Estadual</p>
+            </div>
+            <div className="bg-amber-50 p-5 rounded-2xl border border-amber-200 shadow-sm">
+              <p className="text-xs font-bold uppercase text-amber-800 tracking-wider">👨‍👩‍👧‍👦 Clãs Familiares Internos</p>
+              <p className="text-2xl font-black text-amber-950 mt-1">
+                {vinculosNepotismo.filter(v => v.tipo_vinculo === 'CLA_FAMILIAR_INTERNO').length} assessores
+              </p>
+              <p className="text-xs text-amber-700 mt-0.5">Mesma família no mesmo gabinete</p>
+            </div>
+            <div className={`p-5 rounded-2xl border shadow-sm ${vinculosNepotismo.filter(v => v.tipo_vinculo === 'ASSESSOR_DOADOR_TSE' || v.tipo_vinculo === 'ASSESSOR_VINCULO_EMPRESA').length > 0 ? 'bg-red-50 border-red-300' : 'bg-emerald-50 border-emerald-200'}`}>
+              <p className="text-xs font-bold uppercase text-red-800 tracking-wider">🗳️ Assessores Doadores TSE / QSA</p>
+              <p className="text-2xl font-black text-red-900 mt-1">
+                {vinculosNepotismo.filter(v => v.tipo_vinculo === 'ASSESSOR_DOADOR_TSE' || v.tipo_vinculo === 'ASSESSOR_VINCULO_EMPRESA').length} casos
+              </p>
+              <p className="text-xs text-red-700 mt-0.5">Financiadores eleitorais ou sócios</p>
+            </div>
+          </div>
+
+          {/* Painel de Vínculos de Nepotismo Cruzado, Clãs e Financiadores TSE */}
+          {vinculosNepotismo.length > 0 && (
+            <div className="bg-white p-6 rounded-2xl border border-rose-200 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <ShieldAlert className="text-rose-600" /> Dossiê de Nepotismo Cruzado (Câmara × Senado), Clãs Familiares & Financiadores TSE
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Cruzamento nominal e genealógico da folha do gabinete contra todos os 513 Deputados Federais, 81 Senadores da República, doadores eleitorais do TSE e sócios de empresas fornecedoras.
+                  </p>
+                </div>
+                <span className="text-xs font-bold px-3 py-1 rounded-full bg-rose-100 text-rose-800 self-start md:self-auto">
+                  {vinculosNepotismo.length} conexões mapeadas
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {vinculosNepotismo.map((v) => (
+                  <div key={v.id} className="bg-rose-50/40 border border-rose-200 rounded-xl p-4 flex flex-col justify-between gap-2">
+                    <div>
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                          v.tipo_vinculo === 'ASSESSOR_DOADOR_TSE'
+                            ? 'bg-red-600 text-white'
+                            : v.tipo_vinculo.includes('NEPOTISMO')
+                            ? 'bg-rose-700 text-white'
+                            : v.tipo_vinculo === 'ASSESSOR_VINCULO_EMPRESA'
+                            ? 'bg-purple-700 text-white'
+                            : 'bg-amber-600 text-white'
+                        }`}>
+                          {v.tipo_vinculo === 'NEPOTISMO_CRUZADO_CONGRESSO' && '🏛️ Nepotismo Cruzado (Congresso)'}
+                          {v.tipo_vinculo === 'NEPOTISMO_DIRETO_PARLAMENTAR' && '🚨 Parentesco Direto c/ Titular'}
+                          {v.tipo_vinculo === 'CLA_FAMILIAR_INTERNO' && '👨‍👩‍👧‍👦 Clã Familiar no Gabinete'}
+                          {v.tipo_vinculo === 'ASSESSOR_DOADOR_TSE' && '🗳️ Assessor Financiador TSE'}
+                          {v.tipo_vinculo === 'ASSESSOR_VINCULO_EMPRESA' && '🏢 Vínculo Societário QSA'}
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-500">{v.esfera_alvo}</span>
+                      </div>
+                      <h4 className="font-black text-slate-900 text-sm">{v.assessor_nome}</h4>
+                      <p className="text-xs font-bold text-rose-900 mt-0.5">
+                        Conexão: <span className="underline">{v.sobrenome_conexao}</span> &rarr; {v.parlamentar_ou_empresa_alvo}
+                      </p>
+                      <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">{v.detalhe_completo}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-100">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                  <Users className="text-blue-600" /> Folha de Pessoal do Gabinete Parlamentar
+                  <Users className="text-blue-600" /> Relação Completa de Secretários Parlamentares
                 </h2>
                 <p className="text-sm text-slate-500 mt-1">
-                  Servidores comissionados nomeados diretamente pelo deputado na Câmara Federal, auditados contra o Quadro Societário (QSA) da Receita Federal para detecção de autocontratação e repasse de cota.
+                  Servidores comissionados nomeados diretamente pelo deputado na Câmara Federal, auditados contra o Senado Federal, Câmara, TSE e Receita Federal.
                 </p>
               </div>
               <div className="bg-blue-50 border border-blue-200 px-4 py-2.5 rounded-xl self-start md:self-auto text-right">
@@ -669,47 +763,60 @@ export default function DeputadoProfile() {
                       <th className="px-4 py-3 font-semibold">Nome do Servidor</th>
                       <th className="px-4 py-3 font-semibold">Cargo Oficial</th>
                       <th className="px-4 py-3 font-semibold">Situação</th>
-                      <th className="px-4 py-3 font-semibold text-center">Status QSA / Vínculo</th>
+                      <th className="px-4 py-3 font-semibold">Auditoria Familiar / TSE / QSA</th>
                       <th className="px-4 py-3 font-semibold text-right">Transparência Câmara</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {assessores.map((assessor) => (
-                      <tr key={assessor.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-3">
-                          <p className="font-bold text-slate-800 text-sm">{assessor.nome}</p>
-                          <p className="text-[11px] text-slate-400">Gabinete {deputado.nome}</p>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-700 font-medium">
-                          {assessor.cargo || "Secretário Parlamentar"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
-                            {assessor.situacao || "Em exercício"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700">
-                            Auditado no QSA
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {assessor.remuneracao_url ? (
-                            <a
-                              href={assessor.remuneracao_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline"
-                            >
-                              Ver Contracheque <ExternalLink className="w-3 h-3" />
-                            </a>
-                          ) : (
-                            <span className="text-xs text-slate-400">Portal Câmara</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {assessores.map((assessor) => {
+                      const vincs = vinculosPorAssessor[assessor.nome] || []
+                      return (
+                        <tr key={assessor.id} className={vincs.length > 0 ? "bg-rose-50/40 hover:bg-rose-50 transition-colors" : "hover:bg-slate-50 transition-colors"}>
+                          <td className="px-4 py-3">
+                            <p className="font-bold text-slate-800 text-sm">{assessor.nome}</p>
+                            <p className="text-[11px] text-slate-400">Gabinete {deputado.nome}</p>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-700 font-medium">
+                            {assessor.cargo || "Secretário Parlamentar"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
+                              {assessor.situacao || "Em exercício"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {vincs.length > 0 ? (
+                              <div className="space-y-1">
+                                {vincs.map((v, idx) => (
+                                  <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-900 border border-rose-300 mr-1">
+                                    🧬 {v.parlamentar_ou_empresa_alvo}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700">
+                                Sem vínculo cruzado
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {assessor.remuneracao_url ? (
+                              <a
+                                href={assessor.remuneracao_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                Ver Contracheque <ExternalLink className="w-3 h-3" />
+                              </a>
+                            ) : (
+                              <span className="text-xs text-slate-400">Portal Câmara</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

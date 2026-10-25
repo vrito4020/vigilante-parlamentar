@@ -86,6 +86,33 @@ const heuristicas = [
     mitigacao: 'Fornece link direto de 1 clique para inspeção visual da fachada via Google Maps / Street View.',
   },
   {
+    id: 'NEPOTISMO_CRUZADO_INTERGABINETES', icon: Users2, sev: 'ALTA', peso: 45,
+    titulo: 'Nepotismo Cruzado Intergabinetes (Câmara dos Deputados × Senado Federal)',
+    resumo: 'Secretário parlamentar lotado no gabinete compartilha sobrenome familiar incomum com outro Deputado Federal ou Senador da República da mesma UF/partido.',
+    origem: 'Folha de Pessoal da Câmara + Dados Abertos do Senado Federal + Cadastro Parlamentar',
+    gatilho: 'sobrenome_raro(assessor_gabinete) IN sobrenomes_raros(Senadores_81 UNION Deputados_513)\nAND (mesma_UF OR mesmo_partido OR multiplos_sobrenomes)',
+    explicacao: 'Para contornar a Súmula Vinculante 13 do STF (que veda nomear parentes no próprio gabinete), parlamentares realizam o nepotismo cruzado nomeando parentes de colegas de bancada estadual ou do Senado.',
+    mitigacao: 'Filtra mais de 80 sobrenomes patronímicos comuns (Silva, Santos, Oliveira, Souza, etc.) e prenomes compostos.',
+  },
+  {
+    id: 'ASSESSOR_DOADOR_CAMPANHA_TSE', icon: Scale, sev: 'ALTA', peso: 40,
+    titulo: 'Rachadinha Eleitoral: Assessor Comissionado Financiador de Campanha (TSE)',
+    resumo: 'Secretário parlamentar nomeado em cargo comissionado no gabinete consta como doador ou fornecedor financeiro da campanha eleitoral do deputado no TSE.',
+    origem: 'Tribunal Superior Eleitoral (TSE - Prestação de Contas 2022) + Folha de Gabinete da Câmara',
+    gatilho: 'nome_assessor_gabinete == nome_doador_campanha_TSE\nOR sobrenome_raro(assessor) == sobrenome_raro(grande_doador_PF_TSE)',
+    explicacao: 'Detecta o retorno de doação de campanha mediante nomeação em cargo público comissionado ou a exigência de aportes eleitorais por parte de assessores de gabinete.',
+    mitigacao: 'Destaca separadamente a coincidência nominal exata (100% do nome completo) e o vínculo familiar raro.',
+  },
+  {
+    id: 'CLA_FAMILIAR_NO_GABINETE', icon: Users2, sev: 'MEDIA', peso: 35,
+    titulo: 'Concentração de Clã Familiar na Folha do Mesmo Gabinete',
+    resumo: 'Dois ou mais secretários parlamentares lotados simultaneamente no mesmo gabinete compartilham o mesmo sobrenome familiar.',
+    origem: 'Portal da Transparência da Câmara dos Deputados (Recursos Humanos / Lotação por Gabinete)',
+    gatilho: 'COUNT(assessores_mesmo_gabinete COM mesmo_sobrenome_familiar) >= 2',
+    explicacao: 'Sinaliza a contratação de núcleos familiares inteiros (cônjuges, irmãos ou pais e filhos) dentro da mesma estrutura comissionada de gabinete.',
+    mitigacao: 'Desconsidera os 20 sobrenomes mais frequentes do país quando isolados.',
+  },
+  {
     id: 'VOLUME_CRITICO_EMENDA_PIX', icon: Zap, sev: 'ALTA', peso: 35,
     titulo: 'Volume Crítico de "Emendas PIX" (Transferências Especiais sem Projeto Prévio)',
     resumo: 'Parlamentar destinou mais de R$ 5 milhões a R$ 20+ milhões via Transferências Especiais ("Emendas PIX") sem vinculação prévia a convênio ou obra definida.',
@@ -330,7 +357,7 @@ export default function Metodologia() {
 
       <header className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 mb-4">
-          <ShieldCheck className="w-4 h-4" /> Metodologia Forense v9 (30 Heurísticas Multi-Bases Ativas)
+          <ShieldCheck className="w-4 h-4" /> Metodologia Forense v10 (33 Heurísticas Multi-Bases Ativas)
         </div>
         <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-3">Critérios de Auditoria & Fórmulas Forenses</h1>
         <p className="text-slate-600 text-lg leading-relaxed max-w-3xl">
@@ -396,7 +423,7 @@ export default function Metodologia() {
       {/* Regras */}
       <section className="space-y-6">
         <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-          <h2 className="text-2xl font-bold text-slate-900">Catálogo das 30 Heurísticas Forenses Ativas</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Catálogo das 33 Heurísticas Forenses Ativas</h2>
           <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-3 py-1 rounded-full border border-slate-200">
             Auditoria Contínua
           </span>

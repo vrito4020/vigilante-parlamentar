@@ -7,7 +7,7 @@ from collections import defaultdict
 import math
 
 import models, schemas, database, pipeline
-from integracoes import cgu, pessoal_camara, emendas, pncp, sede_cartel
+from integracoes import cgu, pessoal_camara, emendas, pncp, sede_cartel, nepotismo_cruzado
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -104,6 +104,9 @@ def formatar_alerta_nome(tipo_raw: str) -> str:
         "CARTEL_ENDERECO_OU_CONTATO_FORNECEDORES": "Cartel / Sede ou Telefone Compartilhado entre Fornecedores",
         "REDE_SOCIETARIA_OCULTA_FORNECEDORES": "Rede Societária Oculta no QSA entre Fornecedores",
         "SEDE_FANTASMA_OU_ENDERECO_INCONSISTENTE": "Sede Fantasma ou Endereço Físico Inconsistente",
+        "NEPOTISMO_CRUZADO_INTERGABINETES": "Nepotismo Cruzado Intergabinetes (Câmara × Senado)",
+        "CLA_FAMILIAR_NO_GABINETE": "Clã Familiar na Folha do Mesmo Gabinete",
+        "ASSESSOR_DOADOR_CAMPANHA_TSE": "Assessor Comissionado Financiador de Campanha (TSE)",
         "VOLUME_CRITICO_EMENDA_PIX": "Volume Crítico de Emendas PIX (Transf. Especial)",
         "CONCENTRACAO_MUNICIPIO_EMENDA": "Concentração Geográfica de Emendas",
         "CONTAS_IRREGULARES_TCU": "Inidoneidade / Contas Irregulares (TCU)",
@@ -302,6 +305,7 @@ def list_deputados(db: Session = Depends(database.get_db)):
         d.total_contratos_pncp = round(sum(c.valor_global or 0.0 for c in d.contratos_pncp), 2) if d.contratos_pncp else 0.0
         d.qtd_contratos_pncp = len(d.contratos_pncp) if d.contratos_pncp else 0
         d.qtd_fornecedores_suspeitos = sum(1 for df in d.dossies_fornecedores if df.indicio_cartel_ou_fantasma) if d.dossies_fornecedores else 0
+        d.qtd_vinculos_nepotismo = len(d.vinculos_nepotismo) if d.vinculos_nepotismo else 0
     return deputados
 
 @app.get("/api/deputados/{id}", response_model=schemas.Deputado)
@@ -335,6 +339,7 @@ def get_deputado(id: int, db: Session = Depends(database.get_db)):
     deputado.total_contratos_pncp = round(sum(c.valor_global or 0.0 for c in deputado.contratos_pncp), 2) if deputado.contratos_pncp else 0.0
     deputado.qtd_contratos_pncp = len(deputado.contratos_pncp) if deputado.contratos_pncp else 0
     deputado.qtd_fornecedores_suspeitos = sum(1 for df in deputado.dossies_fornecedores if df.indicio_cartel_ou_fantasma) if deputado.dossies_fornecedores else 0
+    deputado.qtd_vinculos_nepotismo = len(deputado.vinculos_nepotismo) if deputado.vinculos_nepotismo else 0
     return deputado
 @app.get("/api/deputados/{id}/analytics")
 def get_deputado_analytics(id: int, db: Session = Depends(database.get_db)):
@@ -446,6 +451,7 @@ async def analisar_deputado(id: int, db: Session = Depends(database.get_db)):
         await emendas.sincronizar_emendas_deputado(db, id)
         await pncp.sincronizar_contratos_pncp_deputado(db, id)
         await sede_cartel.sincronizar_dossie_fornecedores_deputado(db, id)
+        await nepotismo_cruzado.sincronizar_nepotismo_cruzado_deputado(db, id)
     except Exception as e:
         print(f"[Aviso] Erro ao sincronizar novas fontes para deputado {id}: {e}")
     pipeline.rodar_motor_heuristicas_por_deputado(db, id)

@@ -19,6 +19,7 @@ class DeputadoBase(BaseModel):
     total_contratos_pncp: Optional[float] = 0.0
     qtd_contratos_pncp: Optional[int] = 0
     qtd_fornecedores_suspeitos: Optional[int] = 0
+    qtd_vinculos_nepotismo: Optional[int] = 0
 
 
 class DeputadoCreate(DeputadoBase):
@@ -164,6 +165,25 @@ class DossieFornecedorGabineteSchema(BaseModel):
         from_attributes = True
 
 
+class VinculoGabineteNepotismoSchema(BaseModel):
+    id: int
+    deputado_id: int
+    assessor_nome: str
+    assessor_cargo: Optional[str] = None
+    tipo_vinculo: str
+    gravidade: Optional[str] = "ALTA"
+    sobrenome_conexao: Optional[str] = None
+    parlamentar_ou_empresa_alvo: str
+    esfera_alvo: Optional[str] = None
+    uf_alvo: Optional[str] = None
+    partido_alvo: Optional[str] = None
+    detalhe_completo: str
+    remuneracao_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class AlertaBase(BaseModel):
     tipo_heuristica: str
     severidade: str
@@ -191,6 +211,7 @@ class Deputado(DeputadoBase):
     favorecidos_emendas: List[FavorecidoEmendaSchema] = []
     contratos_pncp: List[ContratoPublicoPNCPSchema] = []
     dossies_fornecedores: List[DossieFornecedorGabineteSchema] = []
+    vinculos_nepotismo: List[VinculoGabineteNepotismoSchema] = []
 
     class Config:
         from_attributes = True

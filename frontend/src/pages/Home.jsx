@@ -657,6 +657,7 @@ export default function Home() {
                 const totalContratosPncp = dep.total_contratos_pncp || 0
                 const qtdContratosPncp = dep.qtd_contratos_pncp || 0
                 const qtdFornSuspeitos = dep.qtd_fornecedores_suspeitos || 0
+                const qtdVinculosNepotismo = dep.qtd_vinculos_nepotismo || 0
 
                 return (
                   <tr key={dep.id} className="hover:bg-slate-50 transition-colors group">
@@ -690,6 +691,11 @@ export default function Home() {
                             {qtdFornSuspeitos > 0 && (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-50 text-orange-800 border border-orange-200">
                                 🏢 {qtdFornSuspeitos} sede/cartel
+                              </span>
+                            )}
+                            {qtdVinculosNepotismo > 0 && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                                🧬 {qtdVinculosNepotismo} nepotismo/TSE
                               </span>
                             )}
                             {totalAssessores > 0 && (

@@ -36,10 +36,13 @@ PESOS = {
     "FORNECEDOR_CEAP_SUPERCONTRATO_EXECUTIVO": 45,
     "CARTEL_ENDERECO_OU_CONTATO_FORNECEDORES": 45,
     "REDE_SOCIETARIA_OCULTA_FORNECEDORES": 45,
+    "NEPOTISMO_CRUZADO_INTERGABINETES": 45,
     "CONTAS_IRREGULARES_TCU": 45,
     "ASSESSOR_SOCIO_FORNECEDOR": 45,
+    "ASSESSOR_DOADOR_CAMPANHA_TSE": 40,
     "COINCIDENCIA_TERRITORIAL_CONTRATO_EMENDA": 40,
     "VINCULO_SOCIETARIO_OU_NEPOTISMO": 40,
+    "CLA_FAMILIAR_NO_GABINETE": 35,
     "SEDE_FANTASMA_OU_ENDERECO_INCONSISTENTE": 35,
     "QUID_PRO_QUO_DOADOR_CAMPANHA": 35,
     "VOLUME_CRITICO_EMENDA_PIX": 35,
@@ -930,6 +933,42 @@ def rodar_motor_heuristicas_por_deputado(db: Session, deputado_id: int):
                     f"em '{df.categoria_principal_gasto}' apresentando inconsistências cadastrais de sede física: {det}.",
                     df.total_recebido_deputado, None,
                 ))
+
+    # -----------------------------------------------------------------------
+    # 20. BLOCO 4: NEPOTISMO CRUZADO INTERGABINETES (CÂMARA × SENADO), CLÃS & RACHADINHA TSE
+    # -----------------------------------------------------------------------
+    vinculos_nep = db.query(models.VinculoGabineteNepotismo).filter(
+        models.VinculoGabineteNepotismo.deputado_id == dep.id
+    ).all()
+
+    if vinculos_nep:
+        cruzados = [
+            v for v in vinculos_nep
+            if v.tipo_vinculo in ("NEPOTISMO_CRUZADO_CONGRESSO", "NEPOTISMO_DIRETO_PARLAMENTAR")
+        ]
+        for vc in cruzados[:3]:
+            alertas.append((
+                "NEPOTISMO_CRUZADO_INTERGABINETES", vc.gravidade or "ALTA",
+                vc.detalhe_completo,
+                None, None,
+            ))
+
+        clas_vistos = set()
+        for v in vinculos_nep:
+            if v.tipo_vinculo == "CLA_FAMILIAR_INTERNO" and v.sobrenome_conexao not in clas_vistos:
+                clas_vistos.add(v.sobrenome_conexao)
+                alertas.append((
+                    "CLA_FAMILIAR_NO_GABINETE", v.gravidade or "MEDIA",
+                    v.detalhe_completo,
+                    None, None,
+                ))
+
+        for v in [x for x in vinculos_nep if x.tipo_vinculo == "ASSESSOR_DOADOR_TSE"][:2]:
+            alertas.append((
+                "ASSESSOR_DOADOR_CAMPANHA_TSE", "ALTA",
+                v.detalhe_completo,
+                None, None,
+            ))
 
     # -----------------------------------------------------------------------
     # PERSISTÊNCIA NO BANCO & CÁLCULO DO ÍNDICE DE RISCO (0 a 100)
