@@ -7,7 +7,7 @@ from collections import defaultdict
 import math
 
 import models, schemas, database, pipeline
-from integracoes import cgu, pessoal_camara, emendas
+from integracoes import cgu, pessoal_camara, emendas, pncp
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -99,6 +99,8 @@ def formatar_alerta_nome(tipo_raw: str) -> str:
         "FORNECEDOR_SANCIONADO_CEIS_CNEP": "Empresa Inidônea / Sancionada (CGU CEIS/CNEP)",
         "EMENDA_FAVORECIDO_SANCIONADO_CGU": "Emenda Destinada a Empresa Sancionada (CGU)",
         "TRIANGULACAO_EMENDA_FORNECEDOR_CEAP": "Triangulação Emenda × Fornecedor CEAP",
+        "FORNECEDOR_CEAP_SUPERCONTRATO_EXECUTIVO": "Fornecedor CEAP com Supercontrato Público (PNCP)",
+        "COINCIDENCIA_TERRITORIAL_CONTRATO_EMENDA": "Cruzamento Territorial: Contrato PNCP × Reduto/Emenda",
         "VOLUME_CRITICO_EMENDA_PIX": "Volume Crítico de Emendas PIX (Transf. Especial)",
         "CONCENTRACAO_MUNICIPIO_EMENDA": "Concentração Geográfica de Emendas",
         "CONTAS_IRREGULARES_TCU": "Inidoneidade / Contas Irregulares (TCU)",
@@ -294,6 +296,8 @@ def list_deputados(db: Session = Depends(database.get_db)):
             sum(e.valor_empenhado or 0.0 for e in d.emendas if "ESPECIAIS" in (e.tipo_emenda or "").upper()), 2
         ) if d.emendas else 0.0
         d.qtd_favorecidos_sancionados = sum(1 for f in d.favorecidos_emendas if f.sancionado_cgu) if d.favorecidos_emendas else 0
+        d.total_contratos_pncp = round(sum(c.valor_global or 0.0 for c in d.contratos_pncp), 2) if d.contratos_pncp else 0.0
+        d.qtd_contratos_pncp = len(d.contratos_pncp) if d.contratos_pncp else 0
     return deputados
 
 @app.get("/api/deputados/{id}", response_model=schemas.Deputado)
@@ -324,6 +328,8 @@ def get_deputado(id: int, db: Session = Depends(database.get_db)):
         sum(e.valor_empenhado or 0.0 for e in deputado.emendas if "ESPECIAIS" in (e.tipo_emenda or "").upper()), 2
     ) if deputado.emendas else 0.0
     deputado.qtd_favorecidos_sancionados = sum(1 for f in deputado.favorecidos_emendas if f.sancionado_cgu) if deputado.favorecidos_emendas else 0
+    deputado.total_contratos_pncp = round(sum(c.valor_global or 0.0 for c in deputado.contratos_pncp), 2) if deputado.contratos_pncp else 0.0
+    deputado.qtd_contratos_pncp = len(deputado.contratos_pncp) if deputado.contratos_pncp else 0
     return deputado
 @app.get("/api/deputados/{id}/analytics")
 def get_deputado_analytics(id: int, db: Session = Depends(database.get_db)):
@@ -433,6 +439,7 @@ async def analisar_deputado(id: int, db: Session = Depends(database.get_db)):
         await cgu.sincronizar_sancoes_fornecedores_deputado(db, id)
         await pessoal_camara.sincronizar_assessores_deputado(db, id)
         await emendas.sincronizar_emendas_deputado(db, id)
+        await pncp.sincronizar_contratos_pncp_deputado(db, id)
     except Exception as e:
         print(f"[Aviso] Erro ao sincronizar novas fontes para deputado {id}: {e}")
     pipeline.rodar_motor_heuristicas_por_deputado(db, id)

@@ -16,6 +16,8 @@ class DeputadoBase(BaseModel):
     total_emendas_empenhado: Optional[float] = 0.0
     total_emendas_pix: Optional[float] = 0.0
     qtd_favorecidos_sancionados: Optional[int] = 0
+    total_contratos_pncp: Optional[float] = 0.0
+    qtd_contratos_pncp: Optional[int] = 0
 
 
 class DeputadoCreate(DeputadoBase):
@@ -111,6 +113,24 @@ class FavorecidoEmendaSchema(BaseModel):
         from_attributes = True
 
 
+class ContratoPublicoPNCPSchema(BaseModel):
+    id: int
+    deputado_id: int
+    fornecedor_cnpj: str
+    fornecedor_nome: str
+    orgao_publico: str
+    uf_orgao: Optional[str] = None
+    municipio_orgao: Optional[str] = None
+    esfera: Optional[str] = None
+    objeto_contrato: Optional[str] = None
+    valor_global: float = 0.0
+    data_assinatura: Optional[str] = None
+    numero_controle_pncp: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class AlertaBase(BaseModel):
     tipo_heuristica: str
     severidade: str
@@ -136,6 +156,7 @@ class Deputado(DeputadoBase):
     sancoes: List[SancaoFornecedorSchema] = []
     emendas: List[EmendaParlamentarSchema] = []
     favorecidos_emendas: List[FavorecidoEmendaSchema] = []
+    contratos_pncp: List[ContratoPublicoPNCPSchema] = []
 
     class Config:
         from_attributes = True

@@ -21,6 +21,7 @@ class Deputado(Base):
     doacoes_campanha = relationship("DoacaoCampanha", back_populates="deputado")
     emendas = relationship("EmendaParlamentar", back_populates="deputado")
     favorecidos_emendas = relationship("FavorecidoEmenda", back_populates="deputado")
+    contratos_pncp = relationship("ContratoPublicoPNCP", back_populates="deputado")
 
 
 class Fornecedor(Base):
@@ -157,4 +158,24 @@ class FavorecidoEmenda(Base):
     detalhe_sancao = Column(String, nullable=True)
 
     deputado = relationship("Deputado", back_populates="favorecidos_emendas")
+
+
+class ContratoPublicoPNCP(Base):
+    __tablename__ = "contratos_pncp"
+
+    id = Column(Integer, primary_key=True, index=True)
+    deputado_id = Column(Integer, ForeignKey("deputados.id"), index=True)
+    fornecedor_cnpj = Column(String, index=True)
+    fornecedor_nome = Column(String)
+    orgao_publico = Column(String)
+    uf_orgao = Column(String, nullable=True)
+    municipio_orgao = Column(String, nullable=True)
+    esfera = Column(String, nullable=True)
+    objeto_contrato = Column(String, nullable=True)
+    valor_global = Column(Float, default=0.0)
+    data_assinatura = Column(String, nullable=True)
+    numero_controle_pncp = Column(String, nullable=True)
+
+    deputado = relationship("Deputado", back_populates="contratos_pncp")
+
 

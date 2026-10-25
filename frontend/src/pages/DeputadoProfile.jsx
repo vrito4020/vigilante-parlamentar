@@ -124,6 +124,10 @@ export default function DeputadoProfile() {
   const totalEmendasEmp = deputado.total_emendas_empenhado || emendas.reduce((acc, e) => acc + (e.valor_empenhado || 0), 0)
   const totalEmendasPago = emendas.reduce((acc, e) => acc + (e.valor_pago || 0), 0)
   const totalEmendasPix = deputado.total_emendas_pix || emendas.filter(e => (e.tipo_emenda || '').toUpperCase().includes('ESPECIAIS')).reduce((acc, e) => acc + (e.valor_empenhado || 0), 0)
+  const contratosPncp = deputado.contratos_pncp || []
+  const totalContratosPncp = deputado.total_contratos_pncp || contratosPncp.reduce((acc, c) => acc + (c.valor_global || 0), 0)
+  const fornecedoresDistintosPncp = new Set(contratosPncp.map(c => c.fornecedor_cnpj)).size
+  const contratosNaUfDeputado = contratosPncp.filter(c => (c.uf_orgao || '').toUpperCase() === (deputado.uf || '').toUpperCase())
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
@@ -189,6 +193,11 @@ export default function DeputadoProfile() {
             {totalEmendasPix > 0 && (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300">
                 ⚡ Emendas PIX: {formatarMoeda(totalEmendasPix)}
+              </span>
+            )}
+            {contratosPncp.length > 0 && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-900 border border-indigo-300">
+                🏛️ Contratos PNCP: {formatarMoeda(totalContratosPncp)} ({contratosPncp.length})
               </span>
             )}
             {temSancoes && (
@@ -290,6 +299,18 @@ export default function DeputadoProfile() {
           }`}
         >
           <DollarSign className="w-4 h-4" /> Emendas & PIX ({emendas.length}) {favSancionados.length > 0 && '🚨'}
+        </button>
+        <button
+          onClick={() => setActiveTab('pncp')}
+          className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 ${
+            activeTab === 'pncp'
+              ? 'bg-indigo-700 text-white shadow-sm'
+              : contratosPncp.length > 0
+              ? 'text-indigo-800 bg-indigo-50 hover:bg-indigo-100 font-extrabold border border-indigo-200'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <Building2 className="w-4 h-4" /> Contratos Públicos PNCP ({contratosPncp.length})
         </button>
         <button
           onClick={() => setActiveTab('gabinete')}
@@ -908,6 +929,113 @@ export default function DeputadoProfile() {
                           </td>
                           <td className="px-4 py-3 text-right font-black text-emerald-700 text-xs whitespace-nowrap">
                             {formatarMoeda(em.valor_pago)}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* CONTEÚDO DA ABA 6: CONTRATOS PÚBLICOS NO PNCP (PREFEITURAS, ESTADOS E UNIÃO) */}
+      {activeTab === 'pncp' && (
+        <section className="space-y-8 animate-in fade-in duration-300">
+          {/* KPIs PNCP */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 shadow-sm">
+              <p className="text-xs font-bold uppercase text-indigo-800 tracking-wider">Volume Global no PNCP</p>
+              <p className="text-2xl font-black text-indigo-950 mt-1">{formatarMoeda(totalContratosPncp)}</p>
+              <p className="text-xs text-indigo-700 mt-0.5">Contratos públicos dos fornecedores CEAP</p>
+            </div>
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">Contratos Localizados</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{contratosPncp.length}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Prefeituras, Estados e Órgãos Federais</p>
+            </div>
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">Fornecedores CEAP com Contratos</p>
+              <p className="text-2xl font-black text-blue-700 mt-1">{fornecedoresDistintosPncp} {fornecedoresDistintosPncp === 1 ? 'empresa' : 'empresas'}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Atuam no gabinete e no Executivo</p>
+            </div>
+            <div className={`p-5 rounded-2xl border shadow-sm ${contratosNaUfDeputado.length > 0 ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200'}`}>
+              <p className={`text-xs font-bold uppercase tracking-wider ${contratosNaUfDeputado.length > 0 ? 'text-amber-800' : 'text-slate-500'}`}>
+                📍 Contratos na Base Eleitoral ({deputado.uf})
+              </p>
+              <p className={`text-2xl font-black mt-1 ${contratosNaUfDeputado.length > 0 ? 'text-amber-900' : 'text-slate-700'}`}>
+                {contratosNaUfDeputado.length} {contratosNaUfDeputado.length === 1 ? 'contrato' : 'contratos'}
+              </p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                {contratosNaUfDeputado.length > 0 ? 'Coincidência territorial com UF do deputado' : 'Fora da UF de origem'}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <Building2 className="text-indigo-600" /> Cruzamento CEAP × Portal Nacional de Contratações Públicas (PNCP)
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Rastreia se as empresas privadas contratadas pelo gabinete parlamentar (Cota CEAP) também firmaram contratos milionários com Prefeituras Municipais, Governos Estaduais ou Ministérios.
+                </p>
+              </div>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 self-start md:self-auto">
+                {contratosPncp.length} contratos públicos
+              </span>
+            </div>
+
+            {contratosPncp.length === 0 ? (
+              <div className="bg-slate-50 p-8 rounded-xl text-center text-slate-500">
+                <p className="font-semibold text-slate-700">Nenhum contrato público adicional encontrado no PNCP para os principais fornecedores privados deste gabinete.</p>
+                <p className="text-xs text-slate-400 mt-1">Clique em "Analisar Gastos Agora" para consultar o Portal Nacional de Contratações Públicas em tempo real.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                      <th className="px-4 py-3 font-semibold">Fornecedor do Gabinete (CEAP)</th>
+                      <th className="px-4 py-3 font-semibold">Órgão Público Contratante</th>
+                      <th className="px-4 py-3 font-semibold">Localidade / UF</th>
+                      <th className="px-4 py-3 font-semibold">Objeto do Contrato</th>
+                      <th className="px-4 py-3 font-semibold text-right">Valor Global (PNCP)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {contratosPncp.map((c) => {
+                      const mesmaUf = (c.uf_orgao || '').toUpperCase() === (deputado.uf || '').toUpperCase()
+                      return (
+                        <tr key={c.id} className={mesmaUf ? "bg-amber-50/40 hover:bg-amber-50 transition-colors" : "hover:bg-slate-50 transition-colors"}>
+                          <td className="px-4 py-3">
+                            <p className="font-bold text-slate-900 text-xs">{c.fornecedor_nome}</p>
+                            <p className="text-[11px] font-mono text-slate-500">CNPJ: {c.fornecedor_cnpj}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-bold text-slate-800 text-xs">{c.orgao_publico}</p>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 mt-0.5">
+                              Esfera: {c.esfera || 'Executivo'} | Assinatura: {c.data_assinatura || 'N/D'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <p className="text-xs font-bold text-slate-800">{c.municipio_orgao || 'Nacional'} - {c.uf_orgao || 'BR'}</p>
+                            {mesmaUf && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 mt-0.5">
+                                📍 Reduto Eleitoral ({deputado.uf})
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="text-xs text-slate-600 line-clamp-2 max-w-md" title={c.objeto_contrato}>
+                              {c.objeto_contrato}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-right font-black text-indigo-900 text-sm whitespace-nowrap">
+                            {formatarMoeda(c.valor_global)}
                           </td>
                         </tr>
                       )

@@ -41,6 +41,24 @@ const heuristicas = [
     mitigacao: 'Exige correspondência exata de CNPJ de 14 dígitos entre a base de execução de emendas e as notas fiscais da cota.',
   },
   {
+    id: 'FORNECEDOR_CEAP_SUPERCONTRATO_EXECUTIVO', icon: Landmark, sev: 'ALTA', peso: 45,
+    titulo: 'Fornecedor CEAP com Supercontratos Públicos no Executivo (PNCP)',
+    resumo: 'Fornecedor privado contratado pelo gabinete na Cota Parlamentar detém contratos milionários com Prefeituras, Governos Estaduais ou Ministérios.',
+    origem: 'Portal Nacional de Contratações Públicas (PNCP) + Câmara dos Deputados (CEAP)',
+    gatilho: 'CNPJ_fornecedor_ceap IN contratos_PNCP\nAND soma_contratos_pncp >= R$ 150.000,00 (ALTA se >= R$ 1.000.000,00)',
+    explicacao: 'Revela empresas de grande porte licitatório (construtoras, locadoras, gráficas e agências) que atuam simultaneamente prestando serviços ao gabinete parlamentar e vencendo licitações milionárias no Poder Executivo.',
+    mitigacao: 'Isenta automaticamente concessionárias de energia/água/telefonia, correios e companhias aéreas nacionais.',
+  },
+  {
+    id: 'COINCIDENCIA_TERRITORIAL_CONTRATO_EMENDA', icon: MapPinCheck, sev: 'ALTA', peso: 40,
+    titulo: 'Cruzamento Territorial: Contrato PNCP no Reduto de Emendas ou Base Eleitoral',
+    resumo: 'Fornecedor da Cota Parlamentar firmou contrato público com prefeitura/órgão exatamente no município contemplado por emendas do deputado ou em sua UF eleitoral.',
+    origem: 'PNCP (Contratos Municipais/Estaduais) + Portal da Transparência (Emendas) + Câmara (CEAP)',
+    gatilho: 'CNPJ_fornecedor_ceap == CNPJ_contratado_PNCP\nAND (municipio_orgao_pncp IN municipios_emendas_deputado OR uf_orgao_pncp == uf_deputado)',
+    explicacao: 'Detecta o circuito fechado regional: o parlamentar destina emendas para determinadas prefeituras/estados onde empresas ligadas ao seu gabinete vencem contratos públicos.',
+    mitigacao: 'Aplica piso mínimo de materialidade contratual no PNCP (R$ 50 mil para coincidência municipal exata e R$ 250 mil para coincidência estadual).',
+  },
+  {
     id: 'VOLUME_CRITICO_EMENDA_PIX', icon: Zap, sev: 'ALTA', peso: 35,
     titulo: 'Volume Crítico de "Emendas PIX" (Transferências Especiais sem Projeto Prévio)',
     resumo: 'Parlamentar destinou mais de R$ 5 milhões a R$ 20+ milhões via Transferências Especiais ("Emendas PIX") sem vinculação prévia a convênio ou obra definida.',
@@ -285,11 +303,11 @@ export default function Metodologia() {
 
       <header className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 mb-4">
-          <ShieldCheck className="w-4 h-4" /> Metodologia Forense v7 (25 Heurísticas Multi-Bases Ativas)
+          <ShieldCheck className="w-4 h-4" /> Metodologia Forense v8 (27 Heurísticas Multi-Bases Ativas)
         </div>
         <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-3">Critérios de Auditoria & Fórmulas Forenses</h1>
         <p className="text-slate-600 text-lg leading-relaxed max-w-3xl">
-          O <strong>Vigilante Parlamentar</strong> realiza fiscalização cívica automatizada cruzando dados da <strong>Câmara dos Deputados (CEAP)</strong>, <strong>Controladoria-Geral da União (CGU - CEIS/CNEP)</strong>, <strong>Folha de Recursos Humanos da Câmara</strong>, <strong>Receita Federal (BrasilAPI/QSA)</strong> e <strong>Tribunal Superior Eleitoral (TSE)</strong>, aplicando filtros rigorosos de materialidade financeira e eliminação de falsos positivos.
+          O <strong>Vigilante Parlamentar</strong> realiza fiscalização cívica automatizada cruzando dados da <strong>Câmara dos Deputados (CEAP)</strong>, <strong>Portal Nacional de Contratações Públicas (PNCP)</strong>, <strong>Controladoria-Geral da União (CGU - Emendas PIX, CEIS/CNEP)</strong>, <strong>Folha de Recursos Humanos da Câmara</strong>, <strong>Receita Federal (BrasilAPI/QSA)</strong> e <strong>Tribunal Superior Eleitoral (TSE)</strong>, aplicando filtros rigorosos de materialidade financeira e eliminação de falsos positivos.
         </p>
       </header>
 
@@ -351,7 +369,7 @@ export default function Metodologia() {
       {/* Regras */}
       <section className="space-y-6">
         <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-          <h2 className="text-2xl font-bold text-slate-900">Catálogo das 25 Heurísticas Forenses Ativas</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Catálogo das 27 Heurísticas Forenses Ativas</h2>
           <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-3 py-1 rounded-full border border-slate-200">
             Auditoria Contínua
           </span>

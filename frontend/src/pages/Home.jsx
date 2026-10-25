@@ -654,6 +654,8 @@ export default function Home() {
                 const totalAssessores = dep.total_assessores || dep.assessores?.length || 0
                 const totalEmendasPix = dep.total_emendas_pix || 0
                 const qtdFavSanc = dep.qtd_favorecidos_sancionados || 0
+                const totalContratosPncp = dep.total_contratos_pncp || 0
+                const qtdContratosPncp = dep.qtd_contratos_pncp || 0
 
                 return (
                   <tr key={dep.id} className="hover:bg-slate-50 transition-colors group">
@@ -677,6 +679,11 @@ export default function Home() {
                             {totalEmendasPix > 0 && (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
                                 ⚡ PIX: R$ {(totalEmendasPix / 1000000).toFixed(1)}M
+                              </span>
+                            )}
+                            {qtdContratosPncp > 0 && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
+                                🏛️ PNCP: {totalContratosPncp >= 1000000 ? `R$ ${(totalContratosPncp / 1000000).toFixed(1)}M` : `R$ ${(totalContratosPncp / 1000).toFixed(0)}k`} ({qtdContratosPncp})
                               </span>
                             )}
                             {totalAssessores > 0 && (

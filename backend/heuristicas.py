@@ -33,8 +33,10 @@ PESOS = {
     "FORNECEDOR_SANCIONADO_CEIS_CNEP": 50,
     "EMENDA_FAVORECIDO_SANCIONADO_CGU": 50,
     "TRIANGULACAO_EMENDA_FORNECEDOR_CEAP": 50,
+    "FORNECEDOR_CEAP_SUPERCONTRATO_EXECUTIVO": 45,
     "CONTAS_IRREGULARES_TCU": 45,
     "ASSESSOR_SOCIO_FORNECEDOR": 45,
+    "COINCIDENCIA_TERRITORIAL_CONTRATO_EMENDA": 40,
     "VINCULO_SOCIETARIO_OU_NEPOTISMO": 40,
     "QUID_PRO_QUO_DOADOR_CAMPANHA": 35,
     "VOLUME_CRITICO_EMENDA_PIX": 35,
@@ -796,6 +798,89 @@ def rodar_motor_heuristicas_por_deputado(db: Session, deputado_id: int):
                 f"({_brl(val_top)} de {_brl(tot_fav_localizado)}) dos recursos rastreados por favorecido deste parlamentar.",
                 val_top, None,
             ))
+
+    # -----------------------------------------------------------------------
+    # 18. BLOCO 2: GRANDES CONTRATOS PÚBLICOS NO PNCP (PREFEITURAS / ESTADOS / UNIÃO)
+    # -----------------------------------------------------------------------
+    contratos_pncp = db.query(models.ContratoPublicoPNCP).filter(
+        models.ContratoPublicoPNCP.deputado_id == dep.id
+    ).all()
+
+    if contratos_pncp:
+        por_forn_pncp = defaultdict(list)
+        for c in contratos_pncp:
+            por_forn_pncp[c.fornecedor_cnpj].append(c)
+
+        # 18a. Fornecedor da Cota Parlamentar com Supercontratos no Executivo (PNCP)
+        ranking_pncp = sorted(
+            por_forn_pncp.items(),
+            key=lambda kv: sum(x.valor_global or 0.0 for x in kv[1]),
+            reverse=True,
+        )
+        for cnpj_pncp, lista_c in ranking_pncp[:3]:
+            soma_pncp = sum(x.valor_global or 0.0 for x in lista_c)
+            if soma_pncp >= 150_000.0:
+                sev_pncp = "ALTA" if soma_pncp >= 1_000_000.0 else "MEDIA"
+                nome_f = lista_c[0].fornecedor_nome
+                tot_ceap_f = cnpjs_ceap_totais.get(re.sub(r"\D", "", cnpj_pncp), 0.0)
+                orgaos_distintos = list(dict.fromkeys(
+                    f"{x.orgao_publico} ({x.municipio_orgao}/{x.uf_orgao})" if x.municipio_orgao else x.orgao_publico
+                    for x in lista_c
+                ))
+                resumo_orgaos = ", ".join(orgaos_distintos[:3])
+                alertas.append((
+                    "FORNECEDOR_CEAP_SUPERCONTRATO_EXECUTIVO", sev_pncp,
+                    f"Fornecedor contratado pelo gabinete na Cota Parlamentar ({nome_f} - CNPJ {cnpj_pncp}, "
+                    f"recebeu {_brl(tot_ceap_f)} na CEAP) detém {len(lista_c)} contrato(s) público(s) no Portal Nacional "
+                    f"de Contratações Públicas (PNCP) somando {_brl(soma_pncp)} junto a órgãos do Executivo/Poder Público "
+                    f"(incluindo: {resumo_orgaos}).",
+                    soma_pncp, None,
+                ))
+
+        # 18b. Coincidência Territorial: Fornecedor CEAP contratado por Prefeitura/Órgão no reduto de Emendas ou UF do Deputado
+        municipios_emenda_norm = {
+            _normalizar(fv.municipio): fv.municipio
+            for fv in favorecidos_dep
+            if fv.municipio and _normalizar(fv.municipio) not in ("BRASILIA", "MULTIPLO", "SEM INFORMACAO")
+        }
+        for e in emendas_dep:
+            if e.localidade:
+                loc_clean = re.sub(r"\s*-\s*[A-Z]{2}$", "", e.localidade.strip())
+                norm_loc = _normalizar(loc_clean)
+                if norm_loc and norm_loc not in ("NACIONAL", "MULTIPLO", "EXTERIOR", "BRASILIA"):
+                    municipios_emenda_norm[norm_loc] = loc_clean
+
+        coincidencias_vistas = set()
+        for c in sorted(contratos_pncp, key=lambda x: x.valor_global or 0.0, reverse=True):
+            if (c.valor_global or 0.0) < 50_000.0:
+                continue
+            mun_c_norm = _normalizar(c.municipio_orgao or "")
+            uf_c = (c.uf_orgao or "").strip().upper()
+            chave_coinc = f"{c.fornecedor_cnpj}_{mun_c_norm}_{uf_c}"
+            if chave_coinc in coincidencias_vistas:
+                continue
+
+            if mun_c_norm and mun_c_norm in municipios_emenda_norm:
+                coincidencias_vistas.add(chave_coinc)
+                alertas.append((
+                    "COINCIDENCIA_TERRITORIAL_CONTRATO_EMENDA", "ALTA",
+                    f"Cruzamento Territorial (CEAP × Emendas × PNCP): O fornecedor do gabinete {c.fornecedor_nome} "
+                    f"(CNPJ {c.fornecedor_cnpj}) firmou contrato público de {_brl(c.valor_global)} com {c.orgao_publico} "
+                    f"no município de {c.municipio_orgao}/{uf_c} — mesma localidade contemplada por Emendas Parlamentares "
+                    f"destinadas pelo deputado.",
+                    c.valor_global, None,
+                ))
+            elif uf_c and uf_c == (dep.uf or "").upper() and (c.valor_global or 0.0) >= 250_000.0:
+                coincidencias_vistas.add(chave_coinc)
+                alertas.append((
+                    "COINCIDENCIA_TERRITORIAL_CONTRATO_EMENDA", "ALTA",
+                    f"Reduto Eleitoral no PNCP: O fornecedor da Cota Parlamentar {c.fornecedor_nome} (CNPJ {c.fornecedor_cnpj}) "
+                    f"possui contrato ativo de {_brl(c.valor_global)} com {c.orgao_publico} em {c.municipio_orgao}/{uf_c}, "
+                    f"base eleitoral do deputado ({dep.uf}). Objeto: {(c.objeto_contrato or '')[:140]}.",
+                    c.valor_global, None,
+                ))
+            if len(coincidencias_vistas) >= 2:
+                break
 
     # -----------------------------------------------------------------------
     # PERSISTÊNCIA NO BANCO & CÁLCULO DO ÍNDICE DE RISCO (0 a 100)
