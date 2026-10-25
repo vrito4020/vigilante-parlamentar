@@ -118,6 +118,12 @@ export default function DeputadoProfile() {
   const temSancoes = (deputado.sancoes && deputado.sancoes.length > 0) || deputado.alertas?.some(a => a.tipo_heuristica === 'FORNECEDOR_SANCIONADO_CEIS_CNEP')
   const sancoesCGU = deputado.sancoes || []
   const assessores = deputado.assessores || []
+  const emendas = deputado.emendas || []
+  const favorecidosEmendas = deputado.favorecidos_emendas || []
+  const favSancionados = favorecidosEmendas.filter(f => f.sancionado_cgu)
+  const totalEmendasEmp = deputado.total_emendas_empenhado || emendas.reduce((acc, e) => acc + (e.valor_empenhado || 0), 0)
+  const totalEmendasPago = emendas.reduce((acc, e) => acc + (e.valor_pago || 0), 0)
+  const totalEmendasPix = deputado.total_emendas_pix || emendas.filter(e => (e.tipo_emenda || '').toUpperCase().includes('ESPECIAIS')).reduce((acc, e) => acc + (e.valor_empenhado || 0), 0)
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
@@ -175,9 +181,24 @@ export default function DeputadoProfile() {
                 <Users className="w-3.5 h-3.5 mr-1 text-blue-600" /> {assessores.length} Secretários de Gabinete
               </span>
             )}
+            {emendas.length > 0 && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                💸 Emendas: {formatarMoeda(totalEmendasEmp)}
+              </span>
+            )}
+            {totalEmendasPix > 0 && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300">
+                ⚡ Emendas PIX: {formatarMoeda(totalEmendasPix)}
+              </span>
+            )}
             {temSancoes && (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300 animate-pulse">
                 <ShieldAlert className="w-3.5 h-3.5 mr-1 text-red-600" /> Fornecedor Sancionado (CGU)
+              </span>
+            )}
+            {favSancionados.length > 0 && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300 animate-pulse">
+                🚨 {favSancionados.length} Emenda(s) p/ Sancionados CGU
               </span>
             )}
           </div>
@@ -257,6 +278,18 @@ export default function DeputadoProfile() {
           }`}
         >
           <AlertCircle className="w-4 h-4" /> Alertas Forenses ({deputado.alertas.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('emendas')}
+          className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 ${
+            activeTab === 'emendas'
+              ? 'bg-purple-700 text-white shadow-sm'
+              : favSancionados.length > 0
+              ? 'text-purple-800 bg-purple-50 hover:bg-purple-100 font-extrabold border border-purple-200'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <DollarSign className="w-4 h-4" /> Emendas & PIX ({emendas.length}) {favSancionados.length > 0 && '🚨'}
         </button>
         <button
           onClick={() => setActiveTab('gabinete')}
@@ -702,6 +735,185 @@ export default function DeputadoProfile() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* CONTEÚDO DA ABA 5: EMENDAS PARLAMENTARES & PIX + FAVORECIDOS */}
+      {activeTab === 'emendas' && (
+        <section className="space-y-8 animate-in fade-in duration-300">
+          {/* KPIs de Emendas */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">Total Empenhado (23–26)</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{formatarMoeda(totalEmendasEmp)}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{emendas.length} emendas autorais</p>
+            </div>
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">Total Efetivamente Pago</p>
+              <p className="text-2xl font-black text-emerald-700 mt-1">{formatarMoeda(totalEmendasPago)}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Inclui Restos a Pagar quitados</p>
+            </div>
+            <div className="bg-purple-50 p-5 rounded-2xl border border-purple-200 shadow-sm">
+              <p className="text-xs font-bold uppercase text-purple-800 tracking-wider">⚡ Emendas PIX (Transf. Especial)</p>
+              <p className="text-2xl font-black text-purple-950 mt-1">{formatarMoeda(totalEmendasPix)}</p>
+              <p className="text-xs text-purple-700 mt-0.5">Repasse direto sem projeto prévio</p>
+            </div>
+            <div className={`p-5 rounded-2xl border shadow-sm ${favSancionados.length > 0 ? 'bg-red-50 border-red-300' : 'bg-emerald-50 border-emerald-200'}`}>
+              <p className={`text-xs font-bold uppercase tracking-wider ${favSancionados.length > 0 ? 'text-red-800' : 'text-emerald-800'}`}>
+                🚨 Favorecidos Sancionados CGU
+              </p>
+              <p className={`text-2xl font-black mt-1 ${favSancionados.length > 0 ? 'text-red-700' : 'text-emerald-800'}`}>
+                {favSancionados.length} {favSancionados.length === 1 ? 'empresa' : 'empresas'}
+              </p>
+              <p className={`text-xs mt-0.5 ${favSancionados.length > 0 ? 'text-red-600 font-semibold' : 'text-emerald-700'}`}>
+                {favSancionados.length > 0 ? 'Receberam verba de emendas' : 'Nenhuma punição no CEIS'}
+              </p>
+            </div>
+          </div>
+
+          {/* Tabela 1: Favorecidos Finais das Emendas (CNPJs Reais) */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <Building2 className="text-purple-600" /> Rastreamento de Favorecidos Finais das Emendas (CNPJ)
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Empresas privadas, institutos, fundos municipais e prefeituras que receberam recursos oriundos de emendas deste parlamentar, cruzados com o CEIS/CNEP da Controladoria-Geral da União.
+                </p>
+              </div>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-purple-100 text-purple-800 self-start md:self-auto">
+                {favorecidosEmendas.length} CNPJs rastreados
+              </span>
+            </div>
+
+            {favorecidosEmendas.length === 0 ? (
+              <div className="bg-slate-50 p-8 rounded-xl text-center text-slate-500">
+                <p className="font-semibold text-slate-700">Nenhum favorecido de emenda sincronizado para este parlamentar ainda.</p>
+                <p className="text-xs text-slate-400 mt-1">Clique em "Analisar Gastos Agora" no topo para baixar os dados do Transferegov/CGU.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                      <th className="px-4 py-3 font-semibold">Favorecido / Razão Social</th>
+                      <th className="px-4 py-3 font-semibold">Natureza Jurídica</th>
+                      <th className="px-4 py-3 font-semibold">Município / UF</th>
+                      <th className="px-4 py-3 font-semibold">Status CGU (CEIS/CNEP)</th>
+                      <th className="px-4 py-3 font-semibold text-right">Total Recebido</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {favorecidosEmendas.map((fav) => (
+                      <tr key={fav.id} className={fav.sancionado_cgu ? "bg-red-50/60 hover:bg-red-50 transition-colors" : "hover:bg-slate-50 transition-colors"}>
+                        <td className="px-4 py-3">
+                          <p className="font-bold text-slate-900 text-sm">{fav.nome_favorecido}</p>
+                          <p className="text-[11px] font-mono text-slate-500">CNPJ: {fav.cnpj_favorecido} | Emenda: {fav.codigo_emenda}</p>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-600">
+                          {fav.natureza_juridica || "Pessoa Jurídica"}
+                        </td>
+                        <td className="px-4 py-3 text-xs font-semibold text-slate-700">
+                          {fav.municipio} - {fav.uf}
+                        </td>
+                        <td className="px-4 py-3">
+                          {fav.sancionado_cgu ? (
+                            <div>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-600 text-white">
+                                🚨 SANCIONADO NA CGU
+                              </span>
+                              <p className="text-[11px] text-red-800 font-medium mt-1 max-w-xs">{fav.detalhe_sancao}</p>
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Regular na CGU
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right font-black text-slate-900 text-sm whitespace-nowrap">
+                          {formatarMoeda(fav.valor_recebido)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Tabela 2: Lista de Emendas Parlamentares Autorais */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <Receipt className="text-blue-600" /> Relação de Emendas Parlamentares e Emendas PIX (2023–2026)
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Detalhamento por código de emenda, modalidade orçamentária, área de atuação governamental e valores empenhados/pagos.
+                </p>
+              </div>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-800 self-start md:self-auto">
+                {emendas.length} emendas listadas
+              </span>
+            </div>
+
+            {emendas.length === 0 ? (
+              <div className="bg-slate-50 p-8 rounded-xl text-center text-slate-500">
+                <p className="font-semibold text-slate-700">Nenhuma emenda parlamentar sincronizada ainda.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                      <th className="px-4 py-3 font-semibold">Código / Ano</th>
+                      <th className="px-4 py-3 font-semibold">Modalidade da Emenda</th>
+                      <th className="px-4 py-3 font-semibold">Destino / Localidade</th>
+                      <th className="px-4 py-3 font-semibold">Função / Ação</th>
+                      <th className="px-4 py-3 font-semibold text-right">Empenhado</th>
+                      <th className="px-4 py-3 font-semibold text-right">Pago</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {emendas.map((em) => {
+                      const ehPix = (em.tipo_emenda || '').toUpperCase().includes('ESPECIAIS')
+                      return (
+                        <tr key={em.id} className={ehPix ? "bg-purple-50/40 hover:bg-purple-50 transition-colors" : "hover:bg-slate-50 transition-colors"}>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <p className="font-mono font-bold text-slate-800 text-xs">{em.codigo_emenda}</p>
+                            <span className="text-[11px] font-bold text-slate-400">Ano {em.ano}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {ehPix ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-purple-100 text-purple-900 border border-purple-300">
+                                ⚡ Emenda PIX (Transf. Especial)
+                              </span>
+                            ) : (
+                              <span className="text-xs font-semibold text-slate-700">{em.tipo_emenda}</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-xs font-bold text-slate-800">
+                            {em.localidade}
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="text-xs font-bold text-slate-700">{em.funcao} — {em.subfuncao}</p>
+                            <p className="text-[11px] text-slate-400 truncate max-w-xs" title={em.acao}>{em.acao}</p>
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-slate-800 text-xs whitespace-nowrap">
+                            {formatarMoeda(em.valor_empenhado)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-black text-emerald-700 text-xs whitespace-nowrap">
+                            {formatarMoeda(em.valor_pago)}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

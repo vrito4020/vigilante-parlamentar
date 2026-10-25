@@ -13,6 +13,9 @@ class DeputadoBase(BaseModel):
     nome_civil: Optional[str] = None
     total_assessores: Optional[int] = 0
     possui_sancao_cgu: Optional[bool] = False
+    total_emendas_empenhado: Optional[float] = 0.0
+    total_emendas_pix: Optional[float] = 0.0
+    qtd_favorecidos_sancionados: Optional[int] = 0
 
 
 class DeputadoCreate(DeputadoBase):
@@ -70,6 +73,44 @@ class DoacaoCampanhaSchema(BaseModel):
         from_attributes = True
 
 
+class EmendaParlamentarSchema(BaseModel):
+    id: int
+    deputado_id: int
+    codigo_emenda: str
+    ano: int
+    tipo_emenda: str
+    localidade: Optional[str] = None
+    uf: Optional[str] = None
+    funcao: Optional[str] = None
+    subfuncao: Optional[str] = None
+    acao: Optional[str] = None
+    valor_empenhado: float = 0.0
+    valor_liquidado: float = 0.0
+    valor_pago: float = 0.0
+
+    class Config:
+        from_attributes = True
+
+
+class FavorecidoEmendaSchema(BaseModel):
+    id: int
+    deputado_id: int
+    codigo_emenda: Optional[str] = None
+    tipo_emenda: Optional[str] = None
+    ano_mes: Optional[str] = None
+    cnpj_favorecido: str
+    nome_favorecido: str
+    natureza_juridica: Optional[str] = None
+    municipio: Optional[str] = None
+    uf: Optional[str] = None
+    valor_recebido: float = 0.0
+    sancionado_cgu: Optional[bool] = False
+    detalhe_sancao: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class AlertaBase(BaseModel):
     tipo_heuristica: str
     severidade: str
@@ -93,6 +134,8 @@ class Deputado(DeputadoBase):
     assessores: List[AssessorGabineteSchema] = []
     doacoes_campanha: List[DoacaoCampanhaSchema] = []
     sancoes: List[SancaoFornecedorSchema] = []
+    emendas: List[EmendaParlamentarSchema] = []
+    favorecidos_emendas: List[FavorecidoEmendaSchema] = []
 
     class Config:
         from_attributes = True

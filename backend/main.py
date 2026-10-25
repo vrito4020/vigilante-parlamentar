@@ -7,7 +7,7 @@ from collections import defaultdict
 import math
 
 import models, schemas, database, pipeline
-from integracoes import cgu, pessoal_camara
+from integracoes import cgu, pessoal_camara, emendas
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -97,6 +97,10 @@ def formatar_categoria(cat_raw: str) -> str:
 def formatar_alerta_nome(tipo_raw: str) -> str:
     mapa = {
         "FORNECEDOR_SANCIONADO_CEIS_CNEP": "Empresa Inidônea / Sancionada (CGU CEIS/CNEP)",
+        "EMENDA_FAVORECIDO_SANCIONADO_CGU": "Emenda Destinada a Empresa Sancionada (CGU)",
+        "TRIANGULACAO_EMENDA_FORNECEDOR_CEAP": "Triangulação Emenda × Fornecedor CEAP",
+        "VOLUME_CRITICO_EMENDA_PIX": "Volume Crítico de Emendas PIX (Transf. Especial)",
+        "CONCENTRACAO_MUNICIPIO_EMENDA": "Concentração Geográfica de Emendas",
         "CONTAS_IRREGULARES_TCU": "Inidoneidade / Contas Irregulares (TCU)",
         "ASSESSOR_SOCIO_FORNECEDOR": "Secretário de Gabinete Sócio de Fornecedor",
         "QUID_PRO_QUO_DOADOR_CAMPANHA": "Retorno de Campanha / Doador Contratado (TSE)",
@@ -281,7 +285,15 @@ def list_deputados(db: Session = Depends(database.get_db)):
     deputados = db.query(models.Deputado).order_by(desc(models.Deputado.indice_risco)).all()
     for d in deputados:
         d.total_assessores = len(d.assessores) if d.assessores else 0
-        d.possui_sancao_cgu = any(a.tipo_heuristica == 'FORNECEDOR_SANCIONADO_CEIS_CNEP' for a in d.alertas) if d.alertas else False
+        d.possui_sancao_cgu = any(
+            a.tipo_heuristica in ('FORNECEDOR_SANCIONADO_CEIS_CNEP', 'EMENDA_FAVORECIDO_SANCIONADO_CGU')
+            for a in d.alertas
+        ) if d.alertas else False
+        d.total_emendas_empenhado = round(sum(e.valor_empenhado or 0.0 for e in d.emendas), 2) if d.emendas else 0.0
+        d.total_emendas_pix = round(
+            sum(e.valor_empenhado or 0.0 for e in d.emendas if "ESPECIAIS" in (e.tipo_emenda or "").upper()), 2
+        ) if d.emendas else 0.0
+        d.qtd_favorecidos_sancionados = sum(1 for f in d.favorecidos_emendas if f.sancionado_cgu) if d.favorecidos_emendas else 0
     return deputados
 
 @app.get("/api/deputados/{id}", response_model=schemas.Deputado)
@@ -303,7 +315,15 @@ def get_deputado(id: int, db: Session = Depends(database.get_db)):
         deputado.sancoes = []
 
     deputado.total_assessores = len(deputado.assessores) if deputado.assessores else 0
-    deputado.possui_sancao_cgu = any(a.tipo_heuristica == 'FORNECEDOR_SANCIONADO_CEIS_CNEP' for a in deputado.alertas) if deputado.alertas else False
+    deputado.possui_sancao_cgu = any(
+        a.tipo_heuristica in ('FORNECEDOR_SANCIONADO_CEIS_CNEP', 'EMENDA_FAVORECIDO_SANCIONADO_CGU')
+        for a in deputado.alertas
+    ) if deputado.alertas else False
+    deputado.total_emendas_empenhado = round(sum(e.valor_empenhado or 0.0 for e in deputado.emendas), 2) if deputado.emendas else 0.0
+    deputado.total_emendas_pix = round(
+        sum(e.valor_empenhado or 0.0 for e in deputado.emendas if "ESPECIAIS" in (e.tipo_emenda or "").upper()), 2
+    ) if deputado.emendas else 0.0
+    deputado.qtd_favorecidos_sancionados = sum(1 for f in deputado.favorecidos_emendas if f.sancionado_cgu) if deputado.favorecidos_emendas else 0
     return deputado
 @app.get("/api/deputados/{id}/analytics")
 def get_deputado_analytics(id: int, db: Session = Depends(database.get_db)):
@@ -412,6 +432,7 @@ async def analisar_deputado(id: int, db: Session = Depends(database.get_db)):
     try:
         await cgu.sincronizar_sancoes_fornecedores_deputado(db, id)
         await pessoal_camara.sincronizar_assessores_deputado(db, id)
+        await emendas.sincronizar_emendas_deputado(db, id)
     except Exception as e:
         print(f"[Aviso] Erro ao sincronizar novas fontes para deputado {id}: {e}")
     pipeline.rodar_motor_heuristicas_por_deputado(db, id)

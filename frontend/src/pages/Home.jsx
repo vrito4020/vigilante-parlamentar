@@ -207,6 +207,9 @@ export default function Home() {
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
                 🚨 CGU / CEIS / CNEP Integrados
               </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                ⚡ Emendas PIX & Transferegov
+              </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
                 👥 Folha de Pessoal da Câmara
               </span>
@@ -649,6 +652,8 @@ export default function Home() {
                 const qtdAlertas = (dep.alertas || []).length
                 const possuiSancaoCGU = dep.possui_sancao_cgu || dep.alertas?.some(a => a.tipo_heuristica === 'FORNECEDOR_SANCIONADO_CEIS_CNEP')
                 const totalAssessores = dep.total_assessores || dep.assessores?.length || 0
+                const totalEmendasPix = dep.total_emendas_pix || 0
+                const qtdFavSanc = dep.qtd_favorecidos_sancionados || 0
 
                 return (
                   <tr key={dep.id} className="hover:bg-slate-50 transition-colors group">
@@ -662,6 +667,16 @@ export default function Home() {
                             {possuiSancaoCGU && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-100 text-red-800 border border-red-300">
                                 🚨 Sancionado CGU
+                              </span>
+                            )}
+                            {qtdFavSanc > 0 && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-100 text-rose-900 border border-rose-300">
+                                💸 {qtdFavSanc} Emenda(s) em Lista Negra
+                              </span>
+                            )}
+                            {totalEmendasPix > 0 && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
+                                ⚡ PIX: R$ {(totalEmendasPix / 1000000).toFixed(1)}M
                               </span>
                             )}
                             {totalAssessores > 0 && (

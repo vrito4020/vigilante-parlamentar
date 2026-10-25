@@ -31,10 +31,13 @@ import models
 # ---------------------------------------------------------------------------
 PESOS = {
     "FORNECEDOR_SANCIONADO_CEIS_CNEP": 50,
+    "EMENDA_FAVORECIDO_SANCIONADO_CGU": 50,
+    "TRIANGULACAO_EMENDA_FORNECEDOR_CEAP": 50,
     "CONTAS_IRREGULARES_TCU": 45,
     "ASSESSOR_SOCIO_FORNECEDOR": 45,
     "VINCULO_SOCIETARIO_OU_NEPOTISMO": 40,
     "QUID_PRO_QUO_DOADOR_CAMPANHA": 35,
+    "VOLUME_CRITICO_EMENDA_PIX": 35,
     "NOTA_FISCAL_EMPRESA_EXTINTA": 45,
     "NOTA_FISCAL_DUPLICADA": 35,
     "EMPRESA_RECEM_CRIADA": 35,
@@ -46,6 +49,7 @@ PESOS = {
     "CAPITAL_SOCIAL_INCOMPATIVEL": 30,
     "TELETRANSPORTE_DISTANCIA_IMPOSSIVEL": 30,
     "COMBUSTIVEL_GRAVE": 30,
+    "CONCENTRACAO_MUNICIPIO_EMENDA": 25,
     "QUEIMA_DE_COTA_FIM_DE_ANO": 25,
     "FRACIONAMENTO_DE_DESPESA": 20,
     "MONOPOLIO_SETORIAL": 20,
@@ -720,6 +724,78 @@ def rodar_motor_heuristicas_por_deputado(db: Session, deputado_id: int):
             f"O valor não configura ilícito em si, mas serve como parâmetro oficial para cotejamento de compatibilidade econômico-financeira.",
             dep.patrimonio_declarado, None,
         ))
+
+    # -----------------------------------------------------------------------
+    # 17. BLOCO EMENDAS PIX & FAVORECIDOS SANCIONADOS NA CGU (ALTA / MÉDIA)
+    # -----------------------------------------------------------------------
+    emendas_dep = db.query(models.EmendaParlamentar).filter(models.EmendaParlamentar.deputado_id == dep.id).all()
+    favorecidos_dep = db.query(models.FavorecidoEmenda).filter(models.FavorecidoEmenda.deputado_id == dep.id).all()
+
+    # 17a. Empresa sancionada no CEIS/CNEP da CGU recebendo verba de Emenda Parlamentar
+    fav_sancionados = [f for f in favorecidos_dep if f.sancionado_cgu and (f.valor_recebido or 0) >= 500.0]
+    fav_sancionados.sort(key=lambda x: x.valor_recebido or 0.0, reverse=True)
+    for fv in fav_sancionados[:3]:
+        alertas.append((
+            "EMENDA_FAVORECIDO_SANCIONADO_CGU", "ALTA",
+            f"Empresa/entidade favorecida por Emenda Parlamentar do deputado ({fv.nome_favorecido} - CNPJ {fv.cnpj_favorecido}, "
+            f"localizada em {fv.municipio}/{fv.uf}) recebeu {_brl(fv.valor_recebido)} de recursos orçamentários federais e "
+            f"consta sancionada na lista negra da CGU ({fv.detalhe_sancao}).",
+            fv.valor_recebido, None,
+        ))
+
+    # 17b. Triangulação entre Emenda Parlamentar e Fornecedor da Cota (CEAP)
+    cnpjs_ceap_totais = defaultdict(float)
+    for d in despesas:
+        if d.fornecedor_cnpj:
+            cnpjs_ceap_totais[re.sub(r"[^0-9]", "", d.fornecedor_cnpj)] += d.valor
+
+    for fv in favorecidos_dep:
+        cnpj_limpo = re.sub(r"[^0-9]", "", fv.cnpj_favorecido or "")
+        if cnpj_limpo and cnpj_limpo in cnpjs_ceap_totais:
+            tot_ceap = cnpjs_ceap_totais[cnpj_limpo]
+            alertas.append((
+                "TRIANGULACAO_EMENDA_FORNECEDOR_CEAP", "ALTA",
+                f"Triangulação de Verba Pública detectada: {fv.nome_favorecido} (CNPJ {fv.cnpj_favorecido}) recebeu "
+                f"{_brl(fv.valor_recebido)} oriundos de Emendas Parlamentares do deputado e simultaneamente faturou "
+                f"{_brl(tot_ceap)} diretamente na Cota Parlamentar (CEAP) do gabinete.",
+                fv.valor_recebido + tot_ceap, None,
+            ))
+
+    # 17c. Volume elevado de Emendas PIX (Transferências Especiais sem projeto vinculado)
+    emendas_pix = [e for e in emendas_dep if "ESPECIAIS" in (e.tipo_emenda or "").upper()]
+    if emendas_pix:
+        tot_pix_emp = sum(e.valor_empenhado or 0.0 for e in emendas_pix)
+        tot_pix_pago = sum(e.valor_pago or 0.0 for e in emendas_pix)
+        if tot_pix_emp >= 5_000_000.0:
+            sev_pix = "ALTA" if tot_pix_emp >= 20_000_000.0 else "MEDIA"
+            locais_pix = sorted({e.localidade for e in emendas_pix if e.localidade and "MULTIPLO" not in e.localidade.upper() and "MÚLTIPLO" not in e.localidade.upper()})
+            locais_txt = f" (destinos diretos incluem: {', '.join(locais_pix[:4])})" if locais_pix else ""
+            alertas.append((
+                "VOLUME_CRITICO_EMENDA_PIX", sev_pix,
+                f"Parlamentar destinou {_brl(tot_pix_emp)} ({_brl(tot_pix_pago)} já pagos) por meio de {len(emendas_pix)} "
+                f"'Transferências Especiais' (Emendas PIX){locais_txt}. Modalidade de repasse direto a entes subnacionais sem "
+                f"vinculação prévia a convênio ou projeto específico, sob auditoria prioritária do STF, TCU e CGU.",
+                tot_pix_emp, None,
+            ))
+
+    # 17d. Concentração Geográfica de Emendas em Reduto Único
+    por_mun_emenda = defaultdict(float)
+    for fv in favorecidos_dep:
+        if fv.municipio and fv.uf and fv.municipio.upper() not in ("BRASILIA", "MULTIPLO", "SEM INFORMACAO"):
+            chave_mun = f"{fv.municipio}/{fv.uf}"
+            por_mun_emenda[chave_mun] += fv.valor_recebido or 0.0
+
+    tot_fav_localizado = sum(por_mun_emenda.values())
+    if tot_fav_localizado >= 1_000_000.0 and len(por_mun_emenda) >= 2:
+        mun_top, val_top = max(por_mun_emenda.items(), key=lambda x: x[1])
+        pct_mun = (val_top / tot_fav_localizado) * 100
+        if pct_mun >= 55.0:
+            alertas.append((
+                "CONCENTRACAO_MUNICIPIO_EMENDA", "MEDIA",
+                f"Concentração geográfica de emendas: o município de {mun_top} absorveu {pct_mun:.0f}% "
+                f"({_brl(val_top)} de {_brl(tot_fav_localizado)}) dos recursos rastreados por favorecido deste parlamentar.",
+                val_top, None,
+            ))
 
     # -----------------------------------------------------------------------
     # PERSISTÊNCIA NO BANCO & CÁLCULO DO ÍNDICE DE RISCO (0 a 100)

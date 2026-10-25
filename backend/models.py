@@ -19,6 +19,8 @@ class Deputado(Base):
     alertas = relationship("Alerta", back_populates="deputado")
     assessores = relationship("AssessorGabinete", back_populates="deputado")
     doacoes_campanha = relationship("DoacaoCampanha", back_populates="deputado")
+    emendas = relationship("EmendaParlamentar", back_populates="deputado")
+    favorecidos_emendas = relationship("FavorecidoEmenda", back_populates="deputado")
 
 
 class Fornecedor(Base):
@@ -115,3 +117,44 @@ class DoacaoCampanha(Base):
     tipo_recurso = Column(String, nullable=True)  # "DOADOR" ou "FORNECEDOR_CAMPANHA"
 
     deputado = relationship("Deputado", back_populates="doacoes_campanha")
+
+
+class EmendaParlamentar(Base):
+    __tablename__ = "emendas_parlamentares"
+
+    id = Column(Integer, primary_key=True, index=True)
+    deputado_id = Column(Integer, ForeignKey("deputados.id"), index=True)
+    codigo_emenda = Column(String, index=True)
+    ano = Column(Integer)
+    tipo_emenda = Column(String)
+    localidade = Column(String, nullable=True)
+    uf = Column(String, nullable=True)
+    funcao = Column(String, nullable=True)
+    subfuncao = Column(String, nullable=True)
+    acao = Column(String, nullable=True)
+    valor_empenhado = Column(Float, default=0.0)
+    valor_liquidado = Column(Float, default=0.0)
+    valor_pago = Column(Float, default=0.0)
+
+    deputado = relationship("Deputado", back_populates="emendas")
+
+
+class FavorecidoEmenda(Base):
+    __tablename__ = "favorecidos_emendas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    deputado_id = Column(Integer, ForeignKey("deputados.id"), index=True)
+    codigo_emenda = Column(String, nullable=True)
+    tipo_emenda = Column(String, nullable=True)
+    ano_mes = Column(String, nullable=True)
+    cnpj_favorecido = Column(String, index=True)
+    nome_favorecido = Column(String)
+    natureza_juridica = Column(String, nullable=True)
+    municipio = Column(String, nullable=True)
+    uf = Column(String, nullable=True)
+    valor_recebido = Column(Float, default=0.0)
+    sancionado_cgu = Column(Boolean, default=False)
+    detalhe_sancao = Column(String, nullable=True)
+
+    deputado = relationship("Deputado", back_populates="favorecidos_emendas")
+
