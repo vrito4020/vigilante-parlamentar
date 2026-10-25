@@ -34,10 +34,13 @@ PESOS = {
     "EMENDA_FAVORECIDO_SANCIONADO_CGU": 50,
     "TRIANGULACAO_EMENDA_FORNECEDOR_CEAP": 50,
     "FORNECEDOR_CEAP_SUPERCONTRATO_EXECUTIVO": 45,
+    "CARTEL_ENDERECO_OU_CONTATO_FORNECEDORES": 45,
+    "REDE_SOCIETARIA_OCULTA_FORNECEDORES": 45,
     "CONTAS_IRREGULARES_TCU": 45,
     "ASSESSOR_SOCIO_FORNECEDOR": 45,
     "COINCIDENCIA_TERRITORIAL_CONTRATO_EMENDA": 40,
     "VINCULO_SOCIETARIO_OU_NEPOTISMO": 40,
+    "SEDE_FANTASMA_OU_ENDERECO_INCONSISTENTE": 35,
     "QUID_PRO_QUO_DOADOR_CAMPANHA": 35,
     "VOLUME_CRITICO_EMENDA_PIX": 35,
     "NOTA_FISCAL_EMPRESA_EXTINTA": 45,
@@ -881,6 +884,52 @@ def rodar_motor_heuristicas_por_deputado(db: Session, deputado_id: int):
                 ))
             if len(coincidencias_vistas) >= 2:
                 break
+
+    # -----------------------------------------------------------------------
+    # 19. BLOCO 3: SEDE FANTASMA, GALPÕES COMPARTILHADOS & CARTEL POR ENDEREÇO/QSA
+    # -----------------------------------------------------------------------
+    dossies_forn = db.query(models.DossieFornecedorGabinete).filter(
+        models.DossieFornecedorGabinete.deputado_id == dep.id
+    ).all()
+
+    if dossies_forn:
+        for df in dossies_forn:
+            if not df.indicio_cartel_ou_fantasma or not df.detalhe_indicio:
+                continue
+            det = df.detalhe_indicio
+
+            if "Sede Compartilhada" in det or "Cluster no Mesmo CEP" in det or "mesmo Telefone" in det:
+                alertas.append((
+                    "CARTEL_ENDERECO_OU_CONTATO_FORNECEDORES", "ALTA",
+                    f"Indício de Cartel / Sede ou Contato Compartilhado: O fornecedor {df.razao_social} (CNPJ {df.cnpj}, "
+                    f"recebeu {_brl(df.total_recebido_deputado)} na CEAP) opera em endereço físico ({df.logradouro}, "
+                    f"{df.numero} - CEP {df.cep}, {df.municipio}/{df.uf}) ou telefone compartilhado com outra(s) empresa(s) "
+                    f"fornecedora(s) de cota parlamentar. Detalhe: {det}.",
+                    df.total_recebido_deputado, None,
+                ))
+
+            if "Rede Societária (QSA)" in det:
+                alertas.append((
+                    "REDE_SOCIETARIA_OCULTA_FORNECEDORES", "ALTA",
+                    f"Rede Societária Oculta no QSA: O fornecedor {df.razao_social} (CNPJ {df.cnpj}, "
+                    f"faturou {_brl(df.total_recebido_deputado)} na CEAP) compartilha sócio/administrador com outra(s) "
+                    f"pessoa(s) jurídica(s) que também faturam verbas parlamentares. Detalhe: {det}.",
+                    df.total_recebido_deputado, None,
+                ))
+
+            if (
+                "Endereço sem numeração predial" in det
+                or "Ausência total de Telefone" in det
+                or "Subcapitalização Física" in det
+            ):
+                sev_sede = "ALTA" if df.total_recebido_deputado >= 15_000.0 else "MEDIA"
+                alertas.append((
+                    "SEDE_FANTASMA_OU_ENDERECO_INCONSISTENTE", sev_sede,
+                    f"Auditoria Física de Sede ({df.razao_social} - CNPJ {df.cnpj}, endereço: {df.logradouro}, "
+                    f"{df.numero or 'S/N'} - {df.municipio}/{df.uf}): empresa recebeu {_brl(df.total_recebido_deputado)} "
+                    f"em '{df.categoria_principal_gasto}' apresentando inconsistências cadastrais de sede física: {det}.",
+                    df.total_recebido_deputado, None,
+                ))
 
     # -----------------------------------------------------------------------
     # PERSISTÊNCIA NO BANCO & CÁLCULO DO ÍNDICE DE RISCO (0 a 100)

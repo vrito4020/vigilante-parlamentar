@@ -59,6 +59,33 @@ const heuristicas = [
     mitigacao: 'Aplica piso mínimo de materialidade contratual no PNCP (R$ 50 mil para coincidência municipal exata e R$ 250 mil para coincidência estadual).',
   },
   {
+    id: 'CARTEL_ENDERECO_OU_CONTATO_FORNECEDORES', icon: Building2, sev: 'ALTA', peso: 45,
+    titulo: 'Cartel de Fornecedores: Sede Física (CEP/Nº) ou Telefone Compartilhado',
+    resumo: 'Empresas com raízes de CNPJ distintas contratadas na Cota Parlamentar operam no mesmo endereço físico ou compartilham o mesmo telefone na Receita Federal.',
+    origem: 'Receita Federal (BrasilAPI - Endereço Predial, CEP e Telefones) + Câmara (CEAP)',
+    gatilho: 'CNPJ_A[:8] != CNPJ_B[:8]\nAND ((CEP_A == CEP_B AND Numero_A == Numero_B) OR Telefone_Receita_A == Telefone_Receita_B)',
+    explicacao: 'Revela clusters de empresas operadas pelo mesmo escritório contábil ou galpão compartilhado que simulam concorrência ou dividem faturamento de cotas parlamentares.',
+    mitigacao: 'Compara apenas raízes de CNPJ distintas (excluindo matriz/filial da mesma empresa) e ignora CEPs genéricos da Esplanada dos Ministérios.',
+  },
+  {
+    id: 'REDE_SOCIETARIA_OCULTA_FORNECEDORES', icon: Users2, sev: 'ALTA', peso: 45,
+    titulo: 'Rede Societária Oculta no QSA (Mesmo Sócio em Múltiplas Fornecedoras)',
+    resumo: 'Pessoa física figura simultaneamente no Quadro de Sócios e Administradores (QSA) de duas ou mais empresas diferentes que faturam na Cota Parlamentar.',
+    origem: 'Receita Federal (Quadro Societário QSA / BrasilAPI) + Câmara (CEAP)',
+    gatilho: 'socio_QSA IN (Empresa_A, Empresa_B)\nAND CNPJ_A[:8] != CNPJ_B[:8]',
+    explicacao: 'Identifica grupos econômicos familiares ou empresariais que utilizam múltiplos CNPJs diferentes (gráfica, consultoria, locadora) para pulverizar recebimentos da Câmara.',
+    mitigacao: 'Exige correspondência exata do nome completo do sócio entre raízes empresariais distintas.',
+  },
+  {
+    id: 'SEDE_FANTASMA_OU_ENDERECO_INCONSISTENTE', icon: Compass, sev: 'ALTA', peso: 35,
+    titulo: 'Auditoria Física de Sede: Endereço Sem Número, Sem Contato ou Subcapitalizado',
+    resumo: 'Fornecedor de serviços intangíveis/discricionários com endereço sem numeração predial (S/N), sem telefone/e-mail na Receita ou capital social irrisório.',
+    origem: 'Receita Federal (Cadastro Sincronizado CNPJ) + Google Maps OSINT + Câmara (CEAP)',
+    gatilho: 'categoria IN (divulgação, consultoria, locação, assessoria)\nAND total_recebido >= R$ 6.000,00\nAND (numero IN ("S/N", "0") OR sem_telefone_e_email OR capital_social <= R$ 3.000,00)',
+    explicacao: 'Empresas de fachada frequentemente possuem cadastros incompletos, sem número predial verificável ou capital social simbólico frente a dezenas de milhares de reais faturados.',
+    mitigacao: 'Fornece link direto de 1 clique para inspeção visual da fachada via Google Maps / Street View.',
+  },
+  {
     id: 'VOLUME_CRITICO_EMENDA_PIX', icon: Zap, sev: 'ALTA', peso: 35,
     titulo: 'Volume Crítico de "Emendas PIX" (Transferências Especiais sem Projeto Prévio)',
     resumo: 'Parlamentar destinou mais de R$ 5 milhões a R$ 20+ milhões via Transferências Especiais ("Emendas PIX") sem vinculação prévia a convênio ou obra definida.',
@@ -303,7 +330,7 @@ export default function Metodologia() {
 
       <header className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 mb-4">
-          <ShieldCheck className="w-4 h-4" /> Metodologia Forense v8 (27 Heurísticas Multi-Bases Ativas)
+          <ShieldCheck className="w-4 h-4" /> Metodologia Forense v9 (30 Heurísticas Multi-Bases Ativas)
         </div>
         <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-3">Critérios de Auditoria & Fórmulas Forenses</h1>
         <p className="text-slate-600 text-lg leading-relaxed max-w-3xl">
@@ -369,7 +396,7 @@ export default function Metodologia() {
       {/* Regras */}
       <section className="space-y-6">
         <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-          <h2 className="text-2xl font-bold text-slate-900">Catálogo das 27 Heurísticas Forenses Ativas</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Catálogo das 30 Heurísticas Forenses Ativas</h2>
           <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-3 py-1 rounded-full border border-slate-200">
             Auditoria Contínua
           </span>

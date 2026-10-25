@@ -18,6 +18,7 @@ class DeputadoBase(BaseModel):
     qtd_favorecidos_sancionados: Optional[int] = 0
     total_contratos_pncp: Optional[float] = 0.0
     qtd_contratos_pncp: Optional[int] = 0
+    qtd_fornecedores_suspeitos: Optional[int] = 0
 
 
 class DeputadoCreate(DeputadoBase):
@@ -131,6 +132,38 @@ class ContratoPublicoPNCPSchema(BaseModel):
         from_attributes = True
 
 
+class DossieFornecedorGabineteSchema(BaseModel):
+    id: int
+    deputado_id: int
+    cnpj: str
+    razao_social: str
+    nome_fantasia: Optional[str] = None
+    logradouro: Optional[str] = None
+    numero: Optional[str] = None
+    complemento: Optional[str] = None
+    bairro: Optional[str] = None
+    cep: Optional[str] = None
+    municipio: Optional[str] = None
+    uf: Optional[str] = None
+    telefone: Optional[str] = None
+    email: Optional[str] = None
+    porte: Optional[str] = None
+    capital_social: Optional[float] = 0.0
+    data_abertura: Optional[str] = None
+    cnae_principal: Optional[str] = None
+    situacao_cadastral: Optional[str] = None
+    qsa_socios: Optional[str] = None
+    total_recebido_deputado: float = 0.0
+    qtd_notas_deputado: int = 0
+    categoria_principal_gasto: Optional[str] = None
+    url_google_maps: Optional[str] = None
+    indicio_cartel_ou_fantasma: Optional[bool] = False
+    detalhe_indicio: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class AlertaBase(BaseModel):
     tipo_heuristica: str
     severidade: str
@@ -157,6 +190,7 @@ class Deputado(DeputadoBase):
     emendas: List[EmendaParlamentarSchema] = []
     favorecidos_emendas: List[FavorecidoEmendaSchema] = []
     contratos_pncp: List[ContratoPublicoPNCPSchema] = []
+    dossies_fornecedores: List[DossieFornecedorGabineteSchema] = []
 
     class Config:
         from_attributes = True

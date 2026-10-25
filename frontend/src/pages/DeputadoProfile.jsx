@@ -128,6 +128,9 @@ export default function DeputadoProfile() {
   const totalContratosPncp = deputado.total_contratos_pncp || contratosPncp.reduce((acc, c) => acc + (c.valor_global || 0), 0)
   const fornecedoresDistintosPncp = new Set(contratosPncp.map(c => c.fornecedor_cnpj)).size
   const contratosNaUfDeputado = contratosPncp.filter(c => (c.uf_orgao || '').toUpperCase() === (deputado.uf || '').toUpperCase())
+  const dossiesFornecedores = deputado.dossies_fornecedores || []
+  const fornecedoresSuspeitos = dossiesFornecedores.filter(df => df.indicio_cartel_ou_fantasma)
+  const fornecedoresSubcap = dossiesFornecedores.filter(df => (df.capital_social || 0) <= 3000)
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
@@ -198,6 +201,11 @@ export default function DeputadoProfile() {
             {contratosPncp.length > 0 && (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-900 border border-indigo-300">
                 🏛️ Contratos PNCP: {formatarMoeda(totalContratosPncp)} ({contratosPncp.length})
+              </span>
+            )}
+            {fornecedoresSuspeitos.length > 0 && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-900 border border-orange-300">
+                🏢 {fornecedoresSuspeitos.length} Sede(s) / Rede Suspeita
               </span>
             )}
             {temSancoes && (
@@ -311,6 +319,18 @@ export default function DeputadoProfile() {
           }`}
         >
           <Building2 className="w-4 h-4" /> Contratos Públicos PNCP ({contratosPncp.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('sedes')}
+          className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 ${
+            activeTab === 'sedes'
+              ? 'bg-orange-600 text-white shadow-sm'
+              : fornecedoresSuspeitos.length > 0
+              ? 'text-orange-800 bg-orange-50 hover:bg-orange-100 font-extrabold border border-orange-200'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <MapPin className="w-4 h-4" /> Sede Física, QSA & Cartéis ({dossiesFornecedores.length}) {fornecedoresSuspeitos.length > 0 && '🚨'}
         </button>
         <button
           onClick={() => setActiveTab('gabinete')}
@@ -1042,6 +1062,159 @@ export default function DeputadoProfile() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* CONTEÚDO DA ABA 7: SEDE FÍSICA, QUADRO SOCIETÁRIO (QSA) & CARTÉIS POR ENDEREÇO/CEP */}
+      {activeTab === 'sedes' && (
+        <section className="space-y-8 animate-in fade-in duration-300">
+          {/* KPIs de Auditoria Física e Societária */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">Fornecedores Auditados</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{dossiesFornecedores.length} empresas</p>
+              <p className="text-xs text-slate-400 mt-0.5">Maiores recebedores privados da CEAP</p>
+            </div>
+            <div className={`p-5 rounded-2xl border shadow-sm ${fornecedoresSuspeitos.length > 0 ? 'bg-orange-50 border-orange-300' : 'bg-emerald-50 border-emerald-200'}`}>
+              <p className={`text-xs font-bold uppercase tracking-wider ${fornecedoresSuspeitos.length > 0 ? 'text-orange-800' : 'text-emerald-800'}`}>
+                🚨 Indícios de Sede / Cartel / Rede
+              </p>
+              <p className={`text-2xl font-black mt-1 ${fornecedoresSuspeitos.length > 0 ? 'text-orange-700' : 'text-emerald-800'}`}>
+                {fornecedoresSuspeitos.length} {fornecedoresSuspeitos.length === 1 ? 'fornecedor' : 'fornecedores'}
+              </p>
+              <p className="text-xs text-orange-700 mt-0.5">
+                {fornecedoresSuspeitos.length > 0 ? 'Compartilhamento ou anomalia física' : 'Nenhuma anomalia física'}
+              </p>
+            </div>
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">Capital Social &le; R$ 3 mil</p>
+              <p className="text-2xl font-black text-amber-600 mt-1">{fornecedoresSubcap.length} empresas</p>
+              <p className="text-xs text-slate-400 mt-0.5">Subcapitalizadas frente ao faturamento</p>
+            </div>
+            <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-sm">
+              <p className="text-xs font-bold uppercase text-slate-400 tracking-wider">Inspeção de Fachada OSINT</p>
+              <p className="text-lg font-black text-emerald-400 mt-1">Google Street View</p>
+              <p className="text-xs text-slate-300 mt-0.5">1 clique para abrir endereço no Mapa</p>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <MapPin className="text-orange-600" /> Auditoria de Sede Física, Quadro de Sócios (QSA) & Cruzamento de Cartel
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Verifica o endereço predial na Receita Federal, telefone, e-mail, capital social, sócios (QSA) e cruza se múltiplas empresas dividem o mesmo galpão/sala comercial, telefone ou dono.
+                </p>
+              </div>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-orange-100 text-orange-800 self-start md:self-auto">
+                {dossiesFornecedores.length} dossiês físicos
+              </span>
+            </div>
+
+            {dossiesFornecedores.length === 0 ? (
+              <div className="bg-slate-50 p-8 rounded-xl text-center text-slate-500">
+                <p className="font-semibold text-slate-700">Nenhum dossiê físico de fornecedor sincronizado ainda.</p>
+                <p className="text-xs text-slate-400 mt-1">Clique em "Analisar Gastos Agora" no topo para enriquecer os endereços e QSA na Receita Federal.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {dossiesFornecedores.map((df) => (
+                  <div
+                    key={df.id}
+                    className={`rounded-2xl border p-5 transition-all ${
+                      df.indicio_cartel_ou_fantasma
+                        ? 'bg-orange-50/50 border-orange-300 shadow-sm'
+                        : 'bg-white border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-slate-200/70">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-base font-black text-slate-900">{df.razao_social}</h3>
+                          {df.nome_fantasia && (
+                            <span className="text-xs font-semibold text-slate-500">({df.nome_fantasia})</span>
+                          )}
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                            df.situacao_cadastral === 'ATIVA'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-red-600 text-white'
+                          }`}>
+                            {df.situacao_cadastral || 'ATIVA'}
+                          </span>
+                          {df.indicio_cartel_ou_fantasma && (
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-orange-600 text-white">
+                              🚨 INDÍCIO FÍSICO / REDE DETECTADO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-mono text-slate-500 mt-1">
+                          CNPJ: {df.cnpj} | Abertura: {df.data_abertura || 'N/D'} | Capital Social: <strong>{formatarMoeda(df.capital_social)}</strong> | CNAE: {df.cnae_principal || 'Não informado'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3 self-start lg:self-auto">
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold uppercase text-slate-400">Pago pelo Deputado (CEAP)</p>
+                          <p className="text-lg font-black text-slate-900">{formatarMoeda(df.total_recebido_deputado)}</p>
+                          <p className="text-[11px] text-slate-500">{df.qtd_notas_deputado} notas ({df.categoria_principal_gasto})</p>
+                        </div>
+                        {df.url_google_maps && (
+                          <a
+                            href={df.url_google_maps}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 shadow-sm transition-all whitespace-nowrap"
+                          >
+                            <MapPin className="w-3.5 h-3.5 text-emerald-400" /> Ver Fachada no Mapa <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 text-xs">
+                      <div className="bg-white/80 p-3 rounded-xl border border-slate-200/80">
+                        <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">📍 Endereço Declarado na Receita</p>
+                        <p className="font-bold text-slate-800">
+                          {df.logradouro ? `${df.logradouro}, ${df.numero || 'S/N'}` : 'Endereço não detalhado na base'}
+                          {df.complemento ? ` (${df.complemento})` : ''}
+                        </p>
+                        <p className="text-slate-600 mt-0.5">
+                          {df.bairro ? `${df.bairro} — ` : ''}{df.municipio}/{df.uf} {df.cep ? `| CEP: ${df.cep}` : ''}
+                        </p>
+                      </div>
+
+                      <div className="bg-white/80 p-3 rounded-xl border border-slate-200/80">
+                        <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">👥 Quadro Societário (QSA)</p>
+                        <p className="font-bold text-slate-800 line-clamp-2" title={df.qsa_socios}>
+                          {df.qsa_socios || 'Empresário Individual / QSA não exposto'}
+                        </p>
+                        <p className="text-slate-500 mt-1">
+                          Tel: {df.telefone || 'Sem telefone'} {df.email ? `| ${df.email}` : ''}
+                        </p>
+                      </div>
+
+                      <div className={`p-3 rounded-xl border ${
+                        df.indicio_cartel_ou_fantasma
+                          ? 'bg-orange-100/70 border-orange-300 text-orange-950'
+                          : 'bg-emerald-50/60 border-emerald-200 text-emerald-900'
+                      }`}>
+                        <p className="text-[10px] font-bold uppercase opacity-75 mb-1">🔍 Diagnóstico de Sede & Rede</p>
+                        {df.indicio_cartel_ou_fantasma ? (
+                          <p className="font-bold text-xs leading-snug">{df.detalhe_indicio}</p>
+                        ) : (
+                          <p className="font-semibold text-xs">
+                            Sede física individualizada, sem sobreposição de CEP/telefone ou sócios com outros fornecedores auditados.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

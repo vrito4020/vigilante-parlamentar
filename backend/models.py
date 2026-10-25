@@ -22,6 +22,7 @@ class Deputado(Base):
     emendas = relationship("EmendaParlamentar", back_populates="deputado")
     favorecidos_emendas = relationship("FavorecidoEmenda", back_populates="deputado")
     contratos_pncp = relationship("ContratoPublicoPNCP", back_populates="deputado")
+    dossies_fornecedores = relationship("DossieFornecedorGabinete", back_populates="deputado")
 
 
 class Fornecedor(Base):
@@ -177,5 +178,39 @@ class ContratoPublicoPNCP(Base):
     numero_controle_pncp = Column(String, nullable=True)
 
     deputado = relationship("Deputado", back_populates="contratos_pncp")
+
+
+class DossieFornecedorGabinete(Base):
+    __tablename__ = "dossies_fornecedores_gabinete"
+
+    id = Column(Integer, primary_key=True, index=True)
+    deputado_id = Column(Integer, ForeignKey("deputados.id"), index=True)
+    cnpj = Column(String, index=True)
+    razao_social = Column(String)
+    nome_fantasia = Column(String, nullable=True)
+    logradouro = Column(String, nullable=True)
+    numero = Column(String, nullable=True)
+    complemento = Column(String, nullable=True)
+    bairro = Column(String, nullable=True)
+    cep = Column(String, index=True, nullable=True)
+    municipio = Column(String, nullable=True)
+    uf = Column(String, nullable=True)
+    telefone = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    porte = Column(String, nullable=True)
+    capital_social = Column(Float, default=0.0)
+    data_abertura = Column(String, nullable=True)
+    cnae_principal = Column(String, nullable=True)
+    situacao_cadastral = Column(String, nullable=True)
+    qsa_socios = Column(String, nullable=True)
+    total_recebido_deputado = Column(Float, default=0.0)
+    qtd_notas_deputado = Column(Integer, default=0)
+    categoria_principal_gasto = Column(String, nullable=True)
+    url_google_maps = Column(String, nullable=True)
+    indicio_cartel_ou_fantasma = Column(Boolean, default=False)
+    detalhe_indicio = Column(String, nullable=True)
+
+    deputado = relationship("Deputado", back_populates="dossies_fornecedores")
+
 
 

@@ -656,6 +656,7 @@ export default function Home() {
                 const qtdFavSanc = dep.qtd_favorecidos_sancionados || 0
                 const totalContratosPncp = dep.total_contratos_pncp || 0
                 const qtdContratosPncp = dep.qtd_contratos_pncp || 0
+                const qtdFornSuspeitos = dep.qtd_fornecedores_suspeitos || 0
 
                 return (
                   <tr key={dep.id} className="hover:bg-slate-50 transition-colors group">
@@ -684,6 +685,11 @@ export default function Home() {
                             {qtdContratosPncp > 0 && (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
                                 🏛️ PNCP: {totalContratosPncp >= 1000000 ? `R$ ${(totalContratosPncp / 1000000).toFixed(1)}M` : `R$ ${(totalContratosPncp / 1000).toFixed(0)}k`} ({qtdContratosPncp})
+                              </span>
+                            )}
+                            {qtdFornSuspeitos > 0 && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-50 text-orange-800 border border-orange-200">
+                                🏢 {qtdFornSuspeitos} sede/cartel
                               </span>
                             )}
                             {totalAssessores > 0 && (
