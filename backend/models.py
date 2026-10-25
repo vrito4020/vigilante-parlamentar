@@ -25,6 +25,7 @@ class Deputado(Base):
     dossies_fornecedores = relationship("DossieFornecedorGabinete", back_populates="deputado")
     vinculos_nepotismo = relationship("VinculoGabineteNepotismo", back_populates="deputado")
     processos_judiciais = relationship("ProcessoJudicialRadar", back_populates="deputado")
+    auditoria_folha = relationship("AuditoriaFolhaGabinete", back_populates="deputado")
 
 
 class Fornecedor(Base):
@@ -253,6 +254,30 @@ class ProcessoJudicialRadar(Base):
     url_consulta = Column(String, nullable=True)
 
     deputado = relationship("Deputado", back_populates="processos_judiciais")
+
+
+class AuditoriaFolhaGabinete(Base):
+    __tablename__ = "auditoria_folha_gabinete"
+
+    id = Column(Integer, primary_key=True, index=True)
+    deputado_id = Column(Integer, ForeignKey("deputados.id"), index=True)
+    ponto_matricula = Column(String, index=True)
+    nome_servidor = Column(String, index=True)
+    grupo_funcional = Column(String)
+    codigo_cargo = Column(String)
+    funcao_detalhe = Column(String, nullable=True)
+    remuneracao_estimada = Column(Float, default=0.0)
+    ato_nomeacao = Column(String, nullable=True)
+    data_inicio_historico = Column(String, nullable=True)
+    data_pub_nomeacao = Column(String, nullable=True)
+    indicio_fantasma_ou_acumulo = Column(Boolean, default=False)
+    tipo_anomalia = Column(String, nullable=True)
+    gravidade = Column(String, default="BAIXA")
+    detalhe_auditoria = Column(String, nullable=True)
+    url_comprovante = Column(String, nullable=True)
+
+    deputado = relationship("Deputado", back_populates="auditoria_folha")
+
 
 
 

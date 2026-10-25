@@ -38,12 +38,15 @@ PESOS = {
     "REDE_SOCIETARIA_OCULTA_FORNECEDORES": 45,
     "NEPOTISMO_CRUZADO_INTERGABINETES": 45,
     "CERTIDAO_CRIMINAL_OBJETO_E_PE_POSITIVA": 45,
+    "SERVIDOR_GABINETE_EXPULSO_CEAF_OU_DUPLA_LOTACAO": 45,
+    "FAMILIA_ASSESSOR_FORNECEDOR_CEAP": 45,
     "CONTAS_IRREGULARES_TCU": 45,
     "ASSESSOR_SOCIO_FORNECEDOR": 45,
     "REDE_PROCESSOS_SANCIONADORES_CONTRATADOS": 40,
     "ASSESSOR_DOADOR_CAMPANHA_TSE": 40,
     "COINCIDENCIA_TERRITORIAL_CONTRATO_EMENDA": 40,
     "VINCULO_SOCIETARIO_OU_NEPOTISMO": 40,
+    "SUPERLOTACAO_CNE_OU_GIRO_PORTARIAS": 35,
     "LITIGIOSIDADE_CONTAS_ELEITORAIS_DATAJUD": 35,
     "CLA_FAMILIAR_NO_GABINETE": 35,
     "SEDE_FANTASMA_OU_ENDERECO_INCONSISTENTE": 35,
@@ -1018,6 +1021,54 @@ def rodar_motor_heuristicas_por_deputado(db: Session, deputado_id: int):
                 f"(CGU/CEIS/CNEP/TCU) recaem diretamente sobre empresas contratadas na Cota Parlamentar ou "
                 f"contempladas por Emendas deste deputado.",
                 None, None,
+            ))
+
+    # -----------------------------------------------------------------------
+    # 22. BLOCO 6: AUDITORIA DE FOLHA, DUPLA LOTAÇÃO, EXPULSÕES NO DOU (CEAF) & CNE EXTRA-COTA
+    # -----------------------------------------------------------------------
+    aud_folha = db.query(models.AuditoriaFolhaGabinete).filter(
+        models.AuditoriaFolhaGabinete.deputado_id == dep.id
+    ).all()
+
+    if aud_folha:
+        # 22a. Servidor no CEAF/DOU (Expulsão Federal) ou Dupla Lotação Simultânea na Câmara
+        criticos_ceaf_dupla = [
+            af for af in aud_folha
+            if "EXPULSAO_CEAF_DOU" in (af.tipo_anomalia or "") or "DUPLA_LOTACAO_CAMARA" in (af.tipo_anomalia or "")
+        ]
+        for af in criticos_ceaf_dupla:
+            alertas.append((
+                "SERVIDOR_GABINETE_EXPULSO_CEAF_OU_DUPLA_LOTACAO", "ALTA",
+                f"Auditoria Funcional & DOU ({af.nome_servidor} — {af.codigo_cargo}, Ponto {af.ponto_matricula}): "
+                f"{af.detalhe_auditoria}",
+                af.remuneracao_estimada, None,
+            ))
+
+        # 22b. Conflito Familiar / Societário de Assessor com Fornecedor da Cota (QSA × Folha)
+        criticos_qsa_forn = [
+            af for af in aud_folha
+            if "VINCULO_FAMILIAR_QSA_FORNECEDOR" in (af.tipo_anomalia or "") or "SOCIO_DIRETO_FORNECEDOR_CEAP" in (af.tipo_anomalia or "")
+        ]
+        for af in criticos_qsa_forn[:2]:
+            alertas.append((
+                "FAMILIA_ASSESSOR_FORNECEDOR_CEAP", "ALTA",
+                f"Conflito Gabinete × Fornecedor CEAP ({af.nome_servidor} — {af.codigo_cargo}): "
+                f"{af.detalhe_auditoria}",
+                af.remuneracao_estimada, None,
+            ))
+
+        # 22c. Superlotação de Cargos de Natureza Especial Extra-Cota (CNEs) ou Giro Intenso de Portarias
+        cnes_extra = [af for af in aud_folha if "CARGO_CNE_EXTRA_COTA" in (af.tipo_anomalia or "")]
+        giros_port = [af for af in aud_folha if "GIRO_PORTARIA_RECALIBRACAO" in (af.tipo_anomalia or "")]
+        if len(cnes_extra) >= 3 or len(giros_port) >= 8:
+            soma_cne = sum(c.remuneracao_estimada or 0 for c in cnes_extra)
+            sev_cne = "ALTA" if len(cnes_extra) >= 4 else "MEDIA"
+            alertas.append((
+                "SUPERLOTACAO_CNE_OU_GIRO_PORTARIAS", sev_cne,
+                f"Anomalia Estrutural de Folha: O gabinete acumula {len(cnes_extra)} Cargo(s) de Natureza Especial "
+                f"(CNE Extra-Cota, somando ~{_brl(soma_cne)}/mês fora da verba ordinária de gabinete) e registra "
+                f"{len(giros_port)} recalibrações salariais recentes por Portaria no Diário da Câmara.",
+                soma_cne if soma_cne > 0 else None, None,
             ))
 
     # -----------------------------------------------------------------------

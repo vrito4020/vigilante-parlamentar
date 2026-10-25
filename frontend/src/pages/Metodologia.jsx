@@ -140,6 +140,33 @@ const heuristicas = [
     mitigacao: 'Consulta em tempo real a árvore de movimentos oficiais da API Pública do CNJ DataJud.',
   },
   {
+    id: 'SERVIDOR_GABINETE_EXPULSO_CEAF_OU_DUPLA_LOTACAO', icon: ShieldAlert, sev: 'ALTA', peso: 45,
+    titulo: 'Servidor de Gabinete no CEAF/DOU (Expulsão Federal) ou Dupla Lotação Simultânea',
+    resumo: 'Secretário parlamentar consta no Cadastro de Expulsões da Administração Federal (CEAF/CGU) com punição publicada no DOU ou acumula duas lotações simultâneas na Câmara.',
+    origem: 'CGU (CEAF / Diário Oficial da União - DOU) + Dados Abertos da Câmara (funcionarios.json)',
+    gatilho: 'nome_servidor IN CEAF_DOU (Demissão / Destituição)\nOR COUNT(lotacoes_simultaneas_camara) >= 2',
+    explicacao: 'Detecta a nomeação em cargos de confiança de servidores expulsos do serviço público por processos disciplinares publicados no DOU ou que figuram simultaneamente em múltiplos gabinetes/lideranças.',
+    mitigacao: 'Exige nome completo com 3 ou mais tokens e exibe o número do processo e a página do Diário Oficial da União.',
+  },
+  {
+    id: 'FAMILIA_ASSESSOR_FORNECEDOR_CEAP', icon: Users2, sev: 'ALTA', peso: 45,
+    titulo: 'Conflito Familiar / Societário: Assessor de Gabinete × Empresa Fornecedora da Cota (QSA)',
+    resumo: 'Secretário parlamentar lotado no gabinete é sócio ou possui parentesco direto (sobrenome familiar raro) com o Quadro Societário (QSA) de fornecedora paga pela CEAP.',
+    origem: 'Dados Abertos da Câmara (Folha Funcional) + Receita Federal (QSA / BrasilAPI) + CEAP',
+    gatilho: 'sobrenome_raro(servidor_gabinete) IN sobrenomes_raros(QSA_fornecedor_contratado_pelo_deputado)',
+    explicacao: 'Revela esquemas em que o parlamentar emprega um membro da família no gabinete em Brasília enquanto contrata a empresa dos parentes desse assessor com verba indenizatória da Cota Parlamentar.',
+    mitigacao: 'Aplica filtro estrito de sobrenomes raros e exige que a empresa tenha faturado notas fiscais no próprio gabinete.',
+  },
+  {
+    id: 'SUPERLOTACAO_CNE_OU_GIRO_PORTARIAS', icon: Briefcase, sev: 'MEDIA', peso: 35,
+    titulo: 'Superlotação de Cargos CNE Extra-Cota ou Giro Intenso de Portarias Salariais no Diário',
+    resumo: 'Gabinete acumula 3 ou mais Cargos de Natureza Especial (CNE07–CNE15) pagos fora da Verba de Gabinete ou registra intenso giro de recalibração de níveis SP por Portaria.',
+    origem: 'Dados Abertos da Câmara dos Deputados (funcionarios.json — Atos de Nomeação e Níveis SP/CNE)',
+    gatilho: 'COUNT(cargos_CNE_no_gabinete) >= 3\nOR COUNT(recalibracoes_portaria_recente) >= 8',
+    explicacao: 'Cargos CNE custam de R$ 10,6 mil a R$ 19,2 mil mensais cada e são pagos pelo orçamento geral da Câmara fora da cota do gabinete; já o giro frequente de portarias SP01–SP25 indica recalibração contínua de salários de assessores.',
+    mitigacao: 'Diferencia reajustes legais automáticos (ato LEI) de alterações discricionárias individuais (ato PORTARIA / ATO DO PRESIDENTE).',
+  },
+  {
     id: 'VOLUME_CRITICO_EMENDA_PIX', icon: Zap, sev: 'ALTA', peso: 35,
     titulo: 'Volume Crítico de "Emendas PIX" (Transferências Especiais sem Projeto Prévio)',
     resumo: 'Parlamentar destinou mais de R$ 5 milhões a R$ 20+ milhões via Transferências Especiais ("Emendas PIX") sem vinculação prévia a convênio ou obra definida.',
@@ -384,11 +411,11 @@ export default function Metodologia() {
 
       <header className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 mb-4">
-          <ShieldCheck className="w-4 h-4" /> Metodologia Forense v11 (36 Heurísticas Multi-Bases Ativas)
+          <ShieldCheck className="w-4 h-4" /> Metodologia Forense v12 (39 Heurísticas Multi-Bases Ativas)
         </div>
         <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-3">Critérios de Auditoria & Fórmulas Forenses</h1>
         <p className="text-slate-600 text-lg leading-relaxed max-w-3xl">
-          O <strong>Vigilante Parlamentar</strong> realiza fiscalização cívica automatizada cruzando dados da <strong>Câmara dos Deputados (CEAP)</strong>, <strong>Conselho Nacional de Justiça (CNJ DataJud)</strong>, <strong>Portal Nacional de Contratações Públicas (PNCP)</strong>, <strong>Controladoria-Geral da União (CGU - Emendas PIX, CEIS/CNEP)</strong>, <strong>Folha da Câmara & Senado Federal</strong>, <strong>Receita Federal (BrasilAPI/QSA)</strong> e <strong>Tribunal Superior Eleitoral (TSE)</strong>, aplicando filtros rigorosos de materialidade financeira e eliminação de falsos positivos.
+          O <strong>Vigilante Parlamentar</strong> realiza fiscalização cívica automatizada cruzando dados da <strong>Câmara dos Deputados (CEAP e Folha Funcional SP/CNE)</strong>, <strong>Conselho Nacional de Justiça (CNJ DataJud)</strong>, <strong>Portal Nacional de Contratações Públicas (PNCP)</strong>, <strong>Controladoria-Geral da União (CGU - Emendas PIX, CEIS, CNEP e CEAF/DOU)</strong>, <strong>Senado Federal</strong>, <strong>Receita Federal (BrasilAPI/QSA)</strong> e <strong>Tribunal Superior Eleitoral (TSE)</strong>, aplicando filtros rigorosos de materialidade financeira e eliminação de falsos positivos.
         </p>
       </header>
 
@@ -450,7 +477,7 @@ export default function Metodologia() {
       {/* Regras */}
       <section className="space-y-6">
         <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-          <h2 className="text-2xl font-bold text-slate-900">Catálogo das 36 Heurísticas Forenses Ativas</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Catálogo das 39 Heurísticas Forenses Ativas</h2>
           <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-3 py-1 rounded-full border border-slate-200">
             Auditoria Contínua
           </span>

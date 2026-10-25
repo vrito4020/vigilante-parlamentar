@@ -7,7 +7,7 @@ from collections import defaultdict
 import math
 
 import models, schemas, database, pipeline
-from integracoes import cgu, pessoal_camara, emendas, pncp, sede_cartel, nepotismo_cruzado, radar_judiciario
+from integracoes import cgu, pessoal_camara, emendas, pncp, sede_cartel, nepotismo_cruzado, radar_judiciario, auditoria_folha
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -110,6 +110,9 @@ def formatar_alerta_nome(tipo_raw: str) -> str:
         "CERTIDAO_CRIMINAL_OBJETO_E_PE_POSITIVA": "Certidão Judicial de Objeto e Pé (Processo Ativo Declarado)",
         "LITIGIOSIDADE_CONTAS_ELEITORAIS_DATAJUD": "Litigiosidade Processual no CNJ DataJud (TRE/TSE)",
         "REDE_PROCESSOS_SANCIONADORES_CONTRATADOS": "Rede de Processos Sancionadores Vinculados (CGU/TCU)",
+        "SERVIDOR_GABINETE_EXPULSO_CEAF_OU_DUPLA_LOTACAO": "Servidor de Gabinete no CEAF/DOU ou Dupla Lotação",
+        "FAMILIA_ASSESSOR_FORNECEDOR_CEAP": "Conflito Familiar/Societário: Assessor × Fornecedor CEAP",
+        "SUPERLOTACAO_CNE_OU_GIRO_PORTARIAS": "Superlotação de CNEs Extra-Cota ou Giro de Portarias",
         "VOLUME_CRITICO_EMENDA_PIX": "Volume Crítico de Emendas PIX (Transf. Especial)",
         "CONCENTRACAO_MUNICIPIO_EMENDA": "Concentração Geográfica de Emendas",
         "CONTAS_IRREGULARES_TCU": "Inidoneidade / Contas Irregulares (TCU)",
@@ -310,6 +313,7 @@ def list_deputados(db: Session = Depends(database.get_db)):
         d.qtd_fornecedores_suspeitos = sum(1 for df in d.dossies_fornecedores if df.indicio_cartel_ou_fantasma) if d.dossies_fornecedores else 0
         d.qtd_vinculos_nepotismo = len(d.vinculos_nepotismo) if d.vinculos_nepotismo else 0
         d.qtd_processos_judiciais = len(d.processos_judiciais) if d.processos_judiciais else 0
+        d.qtd_anomalias_folha = sum(1 for af in d.auditoria_folha if af.indicio_fantasma_ou_acumulo) if d.auditoria_folha else 0
     return deputados
 
 @app.get("/api/deputados/{id}", response_model=schemas.Deputado)
@@ -345,6 +349,7 @@ def get_deputado(id: int, db: Session = Depends(database.get_db)):
     deputado.qtd_fornecedores_suspeitos = sum(1 for df in deputado.dossies_fornecedores if df.indicio_cartel_ou_fantasma) if deputado.dossies_fornecedores else 0
     deputado.qtd_vinculos_nepotismo = len(deputado.vinculos_nepotismo) if deputado.vinculos_nepotismo else 0
     deputado.qtd_processos_judiciais = len(deputado.processos_judiciais) if deputado.processos_judiciais else 0
+    deputado.qtd_anomalias_folha = sum(1 for af in deputado.auditoria_folha if af.indicio_fantasma_ou_acumulo) if deputado.auditoria_folha else 0
     return deputado
 @app.get("/api/deputados/{id}/analytics")
 def get_deputado_analytics(id: int, db: Session = Depends(database.get_db)):
@@ -458,6 +463,7 @@ async def analisar_deputado(id: int, db: Session = Depends(database.get_db)):
         await sede_cartel.sincronizar_dossie_fornecedores_deputado(db, id)
         await nepotismo_cruzado.sincronizar_nepotismo_cruzado_deputado(db, id)
         await radar_judiciario.sincronizar_radar_judiciario_deputado(db, id)
+        await auditoria_folha.sincronizar_auditoria_folha_deputado(db, id)
     except Exception as e:
         print(f"[Aviso] Erro ao sincronizar novas fontes para deputado {id}: {e}")
     pipeline.rodar_motor_heuristicas_por_deputado(db, id)

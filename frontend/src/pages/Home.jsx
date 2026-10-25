@@ -659,6 +659,7 @@ export default function Home() {
                 const qtdFornSuspeitos = dep.qtd_fornecedores_suspeitos || 0
                 const qtdVinculosNepotismo = dep.qtd_vinculos_nepotismo || 0
                 const qtdProcessosJudiciais = dep.qtd_processos_judiciais || 0
+                const qtdAnomaliasFolha = dep.qtd_anomalias_folha || 0
 
                 return (
                   <tr key={dep.id} className="hover:bg-slate-50 transition-colors group">
@@ -702,6 +703,11 @@ export default function Home() {
                             {qtdProcessosJudiciais > 0 && (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-50 text-cyan-900 border border-cyan-200">
                                 ⚖️ {qtdProcessosJudiciais} proc. CNJ
+                              </span>
+                            )}
+                            {qtdAnomaliasFolha > 0 && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-teal-50 text-teal-900 border border-teal-200">
+                                🕵️ {qtdAnomaliasFolha} anom. folha/DOU
                               </span>
                             )}
                             {totalAssessores > 0 && (

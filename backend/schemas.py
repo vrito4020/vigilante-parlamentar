@@ -21,6 +21,7 @@ class DeputadoBase(BaseModel):
     qtd_fornecedores_suspeitos: Optional[int] = 0
     qtd_vinculos_nepotismo: Optional[int] = 0
     qtd_processos_judiciais: Optional[int] = 0
+    qtd_anomalias_folha: Optional[int] = 0
 
 
 class DeputadoCreate(DeputadoBase):
@@ -204,6 +205,28 @@ class ProcessoJudicialRadarSchema(BaseModel):
         from_attributes = True
 
 
+class AuditoriaFolhaGabineteSchema(BaseModel):
+    id: int
+    deputado_id: int
+    ponto_matricula: str
+    nome_servidor: str
+    grupo_funcional: str
+    codigo_cargo: str
+    funcao_detalhe: Optional[str] = None
+    remuneracao_estimada: Optional[float] = 0.0
+    ato_nomeacao: Optional[str] = None
+    data_inicio_historico: Optional[str] = None
+    data_pub_nomeacao: Optional[str] = None
+    indicio_fantasma_ou_acumulo: Optional[bool] = False
+    tipo_anomalia: Optional[str] = None
+    gravidade: Optional[str] = "BAIXA"
+    detalhe_auditoria: Optional[str] = None
+    url_comprovante: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class AlertaBase(BaseModel):
     tipo_heuristica: str
     severidade: str
@@ -233,6 +256,7 @@ class Deputado(DeputadoBase):
     dossies_fornecedores: List[DossieFornecedorGabineteSchema] = []
     vinculos_nepotismo: List[VinculoGabineteNepotismoSchema] = []
     processos_judiciais: List[ProcessoJudicialRadarSchema] = []
+    auditoria_folha: List[AuditoriaFolhaGabineteSchema] = []
 
     class Config:
         from_attributes = True

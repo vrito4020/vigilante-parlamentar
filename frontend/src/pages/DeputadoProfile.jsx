@@ -139,8 +139,12 @@ export default function DeputadoProfile() {
   })
   const processosJudiciais = deputado.processos_judiciais || []
   const certidoesObjetoPe = processosJudiciais.filter(p => (p.numero_processo || '').startsWith('OBJETO-PE-') || (p.numero_processo || '').startsWith('FORO-ESP-'))
-  const processosDatajud = processosJudiciais.filter(p => (p.esfera || '').includes('DataJud'))
-  const processosSancionadores = processosJudiciais.filter(p => (p.numero_processo || '').startsWith('PAD-'))
+  const processosDatajud = processosJudiciais.filter(p => (p.tribunal || p.esfera || '').includes('DataJud'))
+  const processosSancionadores = processosJudiciais.filter(p => (p.polo_alvo || '').includes('Fornecedor') || (p.polo_alvo || '').includes('Favorecido') || (p.numero_processo || '').startsWith('CEIS-') || (p.numero_processo || '').startsWith('PAD-'))
+  const auditoriaFolha = deputado.auditoria_folha || []
+  const anomaliasFolha = auditoriaFolha.filter(af => af.indicio_fantasma_ou_acumulo)
+  const cnesFolha = auditoriaFolha.filter(af => (af.codigo_cargo || '').startsWith('CNE') || (af.grupo_funcional || '').includes('Natureza Especial'))
+  const folhaMensalEstimada = auditoriaFolha.reduce((acc, af) => acc + (af.remuneracao_estimada || 0), 0)
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
@@ -226,6 +230,11 @@ export default function DeputadoProfile() {
             {processosJudiciais.length > 0 && (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-cyan-100 text-cyan-900 border border-cyan-300">
                 ⚖️ {processosJudiciais.length} Processo(s) / Certidões CNJ
+              </span>
+            )}
+            {anomaliasFolha.length > 0 && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-teal-100 text-teal-900 border border-teal-300">
+                🕵️ {anomaliasFolha.length} Anomalia(s) Folha / DOU / CNE
               </span>
             )}
             {temSancoes && (
@@ -375,6 +384,18 @@ export default function DeputadoProfile() {
           }`}
         >
           <Scale className="w-4 h-4" /> Radar Judiciário CNJ ({processosJudiciais.length}) {(certidoesObjetoPe.length > 0 || processosSancionadores.length > 0) && '⚖️'}
+        </button>
+        <button
+          onClick={() => setActiveTab('folha_dou')}
+          className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 ${
+            activeTab === 'folha_dou'
+              ? 'bg-teal-800 text-white shadow-sm'
+              : anomaliasFolha.length > 0
+              ? 'text-teal-900 bg-teal-50 hover:bg-teal-100 font-extrabold border border-teal-200'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <Award className="w-4 h-4" /> Folha, DOU & Fantasmas ({auditoriaFolha.length}) {anomaliasFolha.length > 0 && '🕵️'}
         </button>
         <button
           onClick={() => setActiveTab('sancoes')}
@@ -1410,7 +1431,11 @@ export default function DeputadoProfile() {
               <div className="space-y-4">
                 {processosJudiciais.map((proc) => {
                   const isObjetoPe = (proc.numero_processo || '').startsWith('OBJETO-PE-') || (proc.numero_processo || '').startsWith('FORO-ESP-')
-                  const isPad = (proc.numero_processo || '').startsWith('PAD-')
+                  const isPad = (proc.polo_alvo || '').includes('Fornecedor') || (proc.polo_alvo || '').includes('Favorecido') || (proc.numero_processo || '').startsWith('CEIS-') || (proc.numero_processo || '').startsWith('PAD-')
+                  const classeExibicao = proc.classe_processual || proc.classe_nome || 'Processo / Certidão Judicial'
+                  const poloExibicao = proc.polo_alvo || proc.polo_parlamentar || 'Deputado Titular'
+                  const dataExibicao = proc.data_ajuizamento_ou_certidao || proc.data_ajuizamento || 'N/D'
+                  const andamentoExibicao = proc.ultima_movimentacao || proc.resumo_andamento || 'Sem movimentação detalhada'
                   return (
                     <div
                       key={proc.id}
@@ -1438,24 +1463,24 @@ export default function DeputadoProfile() {
                               {proc.numero_processo}
                             </span>
                             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white border border-slate-200 text-slate-700">
-                              {proc.classe_nome}
+                              {classeExibicao}
                             </span>
-                            {proc.grau && (
+                            {proc.qtd_movimentacoes > 0 && (
                               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">
-                                Grau: {proc.grau}
+                                {proc.qtd_movimentacoes} mov.
                               </span>
                             )}
                           </div>
                           <p className="text-xs text-slate-600 mt-1.5 font-semibold">
-                            🏛️ Órgão Julgador: <span className="text-slate-900">{proc.orgao_julgador || 'Não informado'}</span> | Esfera: <span className="text-slate-900">{proc.esfera}</span>
+                            🏛️ Órgão Julgador: <span className="text-slate-900">{proc.orgao_julgador || 'Não informado'}</span> | Risco: <span className="text-slate-900">{proc.grau_risco || 'MEDIA'}</span>
                           </p>
                         </div>
 
                         <div className="flex items-center gap-3 self-start lg:self-auto">
                           <div className="text-right">
                             <p className="text-[10px] font-bold uppercase text-slate-400">Polo / Vínculo</p>
-                            <p className="text-xs font-black text-slate-800">{proc.polo_parlamentar}</p>
-                            <p className="text-[11px] text-slate-500">Ajuizamento: {proc.data_ajuizamento || 'N/D'}</p>
+                            <p className="text-xs font-black text-slate-800">{poloExibicao}</p>
+                            <p className="text-[11px] text-slate-500">Data/Ref.: {dataExibicao}</p>
                           </div>
                           {proc.url_consulta && (
                             <a
@@ -1474,7 +1499,7 @@ export default function DeputadoProfile() {
                         <div className="bg-white/80 p-3 rounded-xl border border-slate-200/80">
                           <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">📋 Assuntos Processuais / Matéria</p>
                           <p className="font-bold text-slate-800">{proc.assuntos || 'Matéria Eleitoral / Administrativa'}</p>
-                          <p className="text-slate-500 mt-1">Última atualização: {proc.data_ultima_movimentacao || 'N/D'}</p>
+                          <p className="text-slate-500 mt-1">Movimentações mapeadas: {proc.qtd_movimentacoes || 1}</p>
                         </div>
 
                         <div className={`p-3 rounded-xl border ${
@@ -1485,12 +1510,146 @@ export default function DeputadoProfile() {
                             : 'bg-cyan-50/60 border-cyan-200 text-cyan-950'
                         }`}>
                           <p className="text-[10px] font-bold uppercase opacity-75 mb-1">⚡ Último Andamento / Resumo Forense</p>
-                          <p className="font-semibold text-xs leading-snug">{proc.resumo_andamento}</p>
+                          <p className="font-semibold text-xs leading-snug">{andamentoExibicao}</p>
                         </div>
                       </div>
                     </div>
                   )
                 })}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* CONTEÚDO DA ABA 9: BLOCO 6 — AUDITORIA DE FOLHA, DOU (CEAF), DUPLA LOTAÇÃO & CNE EXTRA-COTA */}
+      {activeTab === 'folha_dou' && (
+        <section className="space-y-6 animate-in fade-in duration-300">
+          {/* KPIs do Bloco 6 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">Servidores Auditados na Folha</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{auditoriaFolha.length}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Secretários SP01–SP25 + CNEs</p>
+            </div>
+            <div className="bg-teal-50 p-5 rounded-2xl border border-teal-200 shadow-sm">
+              <p className="text-xs font-bold uppercase text-teal-900 tracking-wider">💰 Folha Bruta Mensal Estimada</p>
+              <p className="text-2xl font-black text-teal-950 mt-1">{formatarMoeda(folhaMensalEstimada)}</p>
+              <p className="text-xs text-teal-700 mt-0.5">Pela tabela oficial SP/CNE da Câmara</p>
+            </div>
+            <div className={`p-5 rounded-2xl border shadow-sm ${cnesFolha.length >= 3 ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200'}`}>
+              <p className={`text-xs font-bold uppercase tracking-wider ${cnesFolha.length >= 3 ? 'text-amber-900' : 'text-slate-600'}`}>
+                🏛️ Cargos CNE Extra-Cota
+              </p>
+              <p className={`text-2xl font-black mt-1 ${cnesFolha.length >= 3 ? 'text-amber-800' : 'text-slate-800'}`}>
+                {cnesFolha.length}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">Pagos fora da Verba de Gabinete</p>
+            </div>
+            <div className={`p-5 rounded-2xl border shadow-sm ${anomaliasFolha.length > 0 ? 'bg-red-50 border-red-300' : 'bg-emerald-50 border-emerald-200'}`}>
+              <p className={`text-xs font-bold uppercase tracking-wider ${anomaliasFolha.length > 0 ? 'text-red-800' : 'text-emerald-800'}`}>
+                🕵️ Anomalias DOU / Acúmulo / QSA
+              </p>
+              <p className={`text-2xl font-black mt-1 ${anomaliasFolha.length > 0 ? 'text-red-700' : 'text-emerald-800'}`}>
+                {anomaliasFolha.length}
+              </p>
+              <p className={`text-xs mt-0.5 ${anomaliasFolha.length > 0 ? 'text-red-700 font-semibold' : 'text-emerald-700'}`}>
+                {anomaliasFolha.length > 0 ? 'CEAF/DOU, Dupla Lotação, QSA ou CNE' : 'Nenhum apontamento crítico'}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <Award className="text-teal-700" /> Auditoria Funcional de Gabinete, Diário Oficial da União (CEAF/CGU), Dupla Lotação & QSA
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Cruzamento da base integral de servidores da Câmara (`funcionarios.json` — Matrícula/Ponto, Nível Salarial `SP01`–`SP25` e `CNE07`–`CNE15`, Atos no Diário) com o <strong>Cadastro de Expulsões da Administração Federal (CEAF/CGU — DOU)</strong> e o <strong>Quadro Societário (QSA)</strong> dos fornecedores contratados.
+                </p>
+              </div>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-teal-100 text-teal-900 self-start md:self-auto">
+                {auditoriaFolha.length} matrículas auditadas
+              </span>
+            </div>
+
+            {auditoriaFolha.length === 0 ? (
+              <div className="bg-slate-50 p-8 rounded-xl text-center text-slate-500">
+                <p className="font-semibold text-slate-700">Nenhum dossiê funcional de folha sincronizado para este parlamentar ainda.</p>
+                <p className="text-xs text-slate-400 mt-1">Clique em &ldquo;Analisar Gastos Agora&rdquo; no topo para cruzar a folha da Câmara com o CEAF/DOU e o QSA.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {[...auditoriaFolha]
+                  .sort((a, b) => (b.indicio_fantasma_ou_acumulo ? 1 : 0) - (a.indicio_fantasma_ou_acumulo ? 1 : 0) || (b.remuneracao_estimada || 0) - (a.remuneracao_estimada || 0))
+                  .map((af) => {
+                    const isAlta = af.gravidade === 'ALTA'
+                    const isMedia = af.gravidade === 'MEDIA'
+                    return (
+                      <div
+                        key={af.id}
+                        className={`p-4 rounded-2xl border transition-all ${
+                          isAlta
+                            ? 'bg-red-50/50 border-red-300 shadow-sm'
+                            : isMedia
+                            ? 'bg-amber-50/40 border-amber-300 shadow-sm'
+                            : 'bg-slate-50/50 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-900 text-white">
+                                {af.ponto_matricula}
+                              </span>
+                              <span className="text-sm font-black text-slate-900">
+                                {af.nome_servidor}
+                              </span>
+                              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase ${
+                                (af.codigo_cargo || '').startsWith('CNE')
+                                  ? 'bg-purple-700 text-white'
+                                  : 'bg-teal-800 text-white'
+                              }`}>
+                                {af.codigo_cargo}
+                              </span>
+                              <span className="text-xs font-semibold text-slate-600">
+                                {af.grupo_funcional}
+                              </span>
+                              {af.indicio_fantasma_ou_acumulo && (
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                  isAlta ? 'bg-red-600 text-white' : 'bg-amber-600 text-white'
+                                }`}>
+                                  🚨 {af.tipo_anomalia}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-600 mt-1.5 leading-snug">
+                              {af.detalhe_auditoria}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-3 self-start lg:self-auto">
+                            <div className="text-right whitespace-nowrap">
+                              <p className="text-[10px] font-bold uppercase text-slate-400">Salário Bruto Tabulado</p>
+                              <p className="text-base font-black text-slate-900">{formatarMoeda(af.remuneracao_estimada)}/mês</p>
+                              <p className="text-[10px] text-slate-500">Ato: {af.ato_nomeacao || 'PORTARIA'} ({af.data_pub_nomeacao || 'N/D'})</p>
+                            </div>
+                            {af.url_comprovante && (
+                              <a
+                                href={af.url_comprovante}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 shadow-sm transition-all whitespace-nowrap"
+                              >
+                                Contracheque Oficial <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
               </div>
             )}
           </div>
