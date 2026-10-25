@@ -113,6 +113,33 @@ const heuristicas = [
     mitigacao: 'Desconsidera os 20 sobrenomes mais frequentes do país quando isolados.',
   },
   {
+    id: 'CERTIDAO_CRIMINAL_OBJETO_E_PE_POSITIVA', icon: Scale, sev: 'ALTA', peso: 45,
+    titulo: 'Certidão Judicial Criminal / Cível Positiva (Certidão de Objeto e Pé no TSE/CNJ)',
+    resumo: 'Parlamentar apresentou Certidões Judiciais de Objeto e Pé à Justiça Eleitoral por possuir apontamentos em certidões criminais ou de foro especial.',
+    origem: 'Tribunal Superior Eleitoral (Repositório de Certidões Judiciais codTipo 13/16/17) + CNJ DataJud',
+    gatilho: 'COUNT(certidoes_objeto_e_pe_TSE) >= 1\n(ALTA se >= 2 certidões de objeto e pé anexadas)',
+    explicacao: 'Pela legislação eleitoral (Res. TSE nº 23.609), a Certidão de Objeto e Pé só é exigida quando as certidões criminais da Justiça Federal, Estadual ou de Foro por Prerrogativa de Função apresentam registros positivos de ações em andamento.',
+    mitigacao: 'Fornece o link oficial direto para download e leitura integral de cada Certidão Judicial de Objeto e Pé depositada no TSE.',
+  },
+  {
+    id: 'REDE_PROCESSOS_SANCIONADORES_CONTRATADOS', icon: ShieldAlert, sev: 'ALTA', peso: 40,
+    titulo: 'Rede de Processos Sancionadores (PAD / Acórdãos CGU-TCU) em Contratados do Gabinete',
+    resumo: 'Fornecedores da cota parlamentar ou destinatários de emendas do deputado figuram como réus condenados em processos administrativos sancionadores.',
+    origem: 'Controladoria-Geral da União (Processos Sancionadores CEIS/CNEP) + TCU + Câmara (CEAP)',
+    gatilho: 'processo_sancionador_CGU_TCU ATIVO para CNPJ contratado pelo gabinete ou emenda',
+    explicacao: 'Rastreia o número exato do Processo Administrativo de Responsabilização (PAR/PAD) ou Acórdão que condenou empresas recebedoras de verbas ligadas ao parlamentar.',
+    mitigacao: 'Vincula cada processo administrativo ao respectivo órgão julgador sancionador e fundamentação legal.',
+  },
+  {
+    id: 'LITIGIOSIDADE_CONTAS_ELEITORAIS_DATAJUD', icon: Scale, sev: 'MEDIA', peso: 35,
+    titulo: 'Litigiosidade Atípica em Prestação de Contas Eleitorais no CNJ DataJud',
+    resumo: 'Processo judicial de Prestação de Contas Eleitorais no TRE apresenta volume atípico de movimentações processuais, diligências, embargos ou recursos.',
+    origem: 'Conselho Nacional de Justiça — API Pública Nacional do CNJ DataJud (TREs)',
+    gatilho: 'classe == "Prestação de Contas Eleitorais"\nAND (total_movimentacoes_datajud >= 45 OR recurso_eleitoral_detectado)',
+    explicacao: 'Prestações de contas eleitorais regulares encerram-se rapidamente com sentença simples; autos que ultrapassam dezenas ou centenas de movimentações no DataJud indicam impugnações técnicas, diligências sobre gastos de campanha ou recursos contra desaprovação/multa.',
+    mitigacao: 'Consulta em tempo real a árvore de movimentos oficiais da API Pública do CNJ DataJud.',
+  },
+  {
     id: 'VOLUME_CRITICO_EMENDA_PIX', icon: Zap, sev: 'ALTA', peso: 35,
     titulo: 'Volume Crítico de "Emendas PIX" (Transferências Especiais sem Projeto Prévio)',
     resumo: 'Parlamentar destinou mais de R$ 5 milhões a R$ 20+ milhões via Transferências Especiais ("Emendas PIX") sem vinculação prévia a convênio ou obra definida.',
@@ -357,11 +384,11 @@ export default function Metodologia() {
 
       <header className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 mb-4">
-          <ShieldCheck className="w-4 h-4" /> Metodologia Forense v10 (33 Heurísticas Multi-Bases Ativas)
+          <ShieldCheck className="w-4 h-4" /> Metodologia Forense v11 (36 Heurísticas Multi-Bases Ativas)
         </div>
         <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-3">Critérios de Auditoria & Fórmulas Forenses</h1>
         <p className="text-slate-600 text-lg leading-relaxed max-w-3xl">
-          O <strong>Vigilante Parlamentar</strong> realiza fiscalização cívica automatizada cruzando dados da <strong>Câmara dos Deputados (CEAP)</strong>, <strong>Portal Nacional de Contratações Públicas (PNCP)</strong>, <strong>Controladoria-Geral da União (CGU - Emendas PIX, CEIS/CNEP)</strong>, <strong>Folha de Recursos Humanos da Câmara</strong>, <strong>Receita Federal (BrasilAPI/QSA)</strong> e <strong>Tribunal Superior Eleitoral (TSE)</strong>, aplicando filtros rigorosos de materialidade financeira e eliminação de falsos positivos.
+          O <strong>Vigilante Parlamentar</strong> realiza fiscalização cívica automatizada cruzando dados da <strong>Câmara dos Deputados (CEAP)</strong>, <strong>Conselho Nacional de Justiça (CNJ DataJud)</strong>, <strong>Portal Nacional de Contratações Públicas (PNCP)</strong>, <strong>Controladoria-Geral da União (CGU - Emendas PIX, CEIS/CNEP)</strong>, <strong>Folha da Câmara & Senado Federal</strong>, <strong>Receita Federal (BrasilAPI/QSA)</strong> e <strong>Tribunal Superior Eleitoral (TSE)</strong>, aplicando filtros rigorosos de materialidade financeira e eliminação de falsos positivos.
         </p>
       </header>
 
@@ -423,7 +450,7 @@ export default function Metodologia() {
       {/* Regras */}
       <section className="space-y-6">
         <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-          <h2 className="text-2xl font-bold text-slate-900">Catálogo das 33 Heurísticas Forenses Ativas</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Catálogo das 36 Heurísticas Forenses Ativas</h2>
           <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-3 py-1 rounded-full border border-slate-200">
             Auditoria Contínua
           </span>

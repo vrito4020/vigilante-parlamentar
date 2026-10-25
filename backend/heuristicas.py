@@ -37,11 +37,14 @@ PESOS = {
     "CARTEL_ENDERECO_OU_CONTATO_FORNECEDORES": 45,
     "REDE_SOCIETARIA_OCULTA_FORNECEDORES": 45,
     "NEPOTISMO_CRUZADO_INTERGABINETES": 45,
+    "CERTIDAO_CRIMINAL_OBJETO_E_PE_POSITIVA": 45,
     "CONTAS_IRREGULARES_TCU": 45,
     "ASSESSOR_SOCIO_FORNECEDOR": 45,
+    "REDE_PROCESSOS_SANCIONADORES_CONTRATADOS": 40,
     "ASSESSOR_DOADOR_CAMPANHA_TSE": 40,
     "COINCIDENCIA_TERRITORIAL_CONTRATO_EMENDA": 40,
     "VINCULO_SOCIETARIO_OU_NEPOTISMO": 40,
+    "LITIGIOSIDADE_CONTAS_ELEITORAIS_DATAJUD": 35,
     "CLA_FAMILIAR_NO_GABINETE": 35,
     "SEDE_FANTASMA_OU_ENDERECO_INCONSISTENTE": 35,
     "QUID_PRO_QUO_DOADOR_CAMPANHA": 35,
@@ -967,6 +970,53 @@ def rodar_motor_heuristicas_por_deputado(db: Session, deputado_id: int):
             alertas.append((
                 "ASSESSOR_DOADOR_CAMPANHA_TSE", "ALTA",
                 v.detalhe_completo,
+                None, None,
+            ))
+
+    # -----------------------------------------------------------------------
+    # 21. BLOCO 5: RADAR JUDICIÁRIO (CNJ DATAJUD, CERTIDÕES OBJETO E PÉ & PROCESSOS SANCIONADORES)
+    # -----------------------------------------------------------------------
+    processos_jud = db.query(models.ProcessoJudicialRadar).filter(
+        models.ProcessoJudicialRadar.deputado_id == dep.id
+    ).all()
+
+    if processos_jud:
+        # 21a. Certidões Judiciais de Objeto e Pé (Processos Criminais / Cíveis Ativos Declarados no TSE)
+        certs_obj_pe = [p for p in processos_jud if "OBJETO-PE-" in (p.numero_processo or "")]
+        if certs_obj_pe:
+            sev_cert = "ALTA" if len(certs_obj_pe) >= 3 else "MEDIA"
+            alertas.append((
+                "CERTIDAO_CRIMINAL_OBJETO_E_PE_POSITIVA", sev_cert,
+                f"Radar Judiciário: O parlamentar protocolou {len(certs_obj_pe)} Certidão(ões) Judicial(is) de 'Objeto e Pé' "
+                f"perante a Justiça Eleitoral por constarem apontamentos positivos de processos judiciais em andamento nas "
+                f"certidões criminais/cíveis de 1ª ou 2ª instância.",
+                None, None,
+            ))
+
+        # 21b. Litigiosidade Processual no CNJ DataJud (TRE/TSE)
+        procs_datajud = [p for p in processos_jud if "CNJ DataJud" in (p.tribunal or "")]
+        for pdj in procs_datajud:
+            if (pdj.qtd_movimentacoes or 0) >= 45 or "Incidentes:" in (pdj.ultima_movimentacao or ""):
+                sev_dj = "ALTA" if (pdj.qtd_movimentacoes or 0) >= 85 else "MEDIA"
+                alertas.append((
+                    "LITIGIOSIDADE_CONTAS_ELEITORAIS_DATAJUD", sev_dj,
+                    f"Litigiosidade no CNJ DataJud ({pdj.tribunal} — Processo nº {pdj.numero_processo}): "
+                    f"A ação de '{pdj.classe_processual}' no {pdj.orgao_julgador} acumula {pdj.qtd_movimentacoes} "
+                    f"movimentações processuais ({pdj.ultima_movimentacao}).",
+                    None, None,
+                ))
+
+        # 21c. Rede de Processos Sancionadores Vinculados (CGU / TCU / TCE)
+        procs_sanc = [
+            p for p in processos_jud
+            if "Fornecedor CEAP:" in (p.polo_alvo or "") or "Favorecido Emenda:" in (p.polo_alvo or "")
+        ]
+        if len(procs_sanc) >= 2:
+            alertas.append((
+                "REDE_PROCESSOS_SANCIONADORES_CONTRATADOS", "ALTA",
+                f"Ecossistema sob Processo Sancionador: {len(procs_sanc)} processos administrativos punitivos "
+                f"(CGU/CEIS/CNEP/TCU) recaem diretamente sobre empresas contratadas na Cota Parlamentar ou "
+                f"contempladas por Emendas deste deputado.",
                 None, None,
             ))
 

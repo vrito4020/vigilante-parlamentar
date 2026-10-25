@@ -24,6 +24,7 @@ class Deputado(Base):
     contratos_pncp = relationship("ContratoPublicoPNCP", back_populates="deputado")
     dossies_fornecedores = relationship("DossieFornecedorGabinete", back_populates="deputado")
     vinculos_nepotismo = relationship("VinculoGabineteNepotismo", back_populates="deputado")
+    processos_judiciais = relationship("ProcessoJudicialRadar", back_populates="deputado")
 
 
 class Fornecedor(Base):
@@ -232,6 +233,27 @@ class VinculoGabineteNepotismo(Base):
     remuneracao_url = Column(String, nullable=True)
 
     deputado = relationship("Deputado", back_populates="vinculos_nepotismo")
+
+
+class ProcessoJudicialRadar(Base):
+    __tablename__ = "processos_judiciais_radar"
+
+    id = Column(Integer, primary_key=True, index=True)
+    deputado_id = Column(Integer, ForeignKey("deputados.id"), index=True)
+    numero_processo = Column(String, index=True)
+    tribunal = Column(String)
+    classe_processual = Column(String)
+    orgao_julgador = Column(String, nullable=True)
+    assuntos = Column(String, nullable=True)
+    polo_alvo = Column(String)
+    qtd_movimentacoes = Column(Integer, default=0)
+    ultima_movimentacao = Column(String, nullable=True)
+    data_ajuizamento_ou_certidao = Column(String, nullable=True)
+    grau_risco = Column(String, default="MEDIA")
+    url_consulta = Column(String, nullable=True)
+
+    deputado = relationship("Deputado", back_populates="processos_judiciais")
+
 
 
 

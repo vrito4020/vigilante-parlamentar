@@ -658,6 +658,7 @@ export default function Home() {
                 const qtdContratosPncp = dep.qtd_contratos_pncp || 0
                 const qtdFornSuspeitos = dep.qtd_fornecedores_suspeitos || 0
                 const qtdVinculosNepotismo = dep.qtd_vinculos_nepotismo || 0
+                const qtdProcessosJudiciais = dep.qtd_processos_judiciais || 0
 
                 return (
                   <tr key={dep.id} className="hover:bg-slate-50 transition-colors group">
@@ -696,6 +697,11 @@ export default function Home() {
                             {qtdVinculosNepotismo > 0 && (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
                                 🧬 {qtdVinculosNepotismo} nepotismo/TSE
+                              </span>
+                            )}
+                            {qtdProcessosJudiciais > 0 && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-50 text-cyan-900 border border-cyan-200">
+                                ⚖️ {qtdProcessosJudiciais} proc. CNJ
                               </span>
                             )}
                             {totalAssessores > 0 && (

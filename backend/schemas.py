@@ -20,6 +20,7 @@ class DeputadoBase(BaseModel):
     qtd_contratos_pncp: Optional[int] = 0
     qtd_fornecedores_suspeitos: Optional[int] = 0
     qtd_vinculos_nepotismo: Optional[int] = 0
+    qtd_processos_judiciais: Optional[int] = 0
 
 
 class DeputadoCreate(DeputadoBase):
@@ -184,6 +185,25 @@ class VinculoGabineteNepotismoSchema(BaseModel):
         from_attributes = True
 
 
+class ProcessoJudicialRadarSchema(BaseModel):
+    id: int
+    deputado_id: int
+    numero_processo: str
+    tribunal: str
+    classe_processual: str
+    orgao_julgador: Optional[str] = None
+    assuntos: Optional[str] = None
+    polo_alvo: str
+    qtd_movimentacoes: Optional[int] = 0
+    ultima_movimentacao: Optional[str] = None
+    data_ajuizamento_ou_certidao: Optional[str] = None
+    grau_risco: Optional[str] = "MEDIA"
+    url_consulta: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class AlertaBase(BaseModel):
     tipo_heuristica: str
     severidade: str
@@ -212,6 +232,7 @@ class Deputado(DeputadoBase):
     contratos_pncp: List[ContratoPublicoPNCPSchema] = []
     dossies_fornecedores: List[DossieFornecedorGabineteSchema] = []
     vinculos_nepotismo: List[VinculoGabineteNepotismoSchema] = []
+    processos_judiciais: List[ProcessoJudicialRadarSchema] = []
 
     class Config:
         from_attributes = True

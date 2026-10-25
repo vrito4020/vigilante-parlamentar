@@ -137,6 +137,10 @@ export default function DeputadoProfile() {
     if (!vinculosPorAssessor[v.assessor_nome]) vinculosPorAssessor[v.assessor_nome] = []
     vinculosPorAssessor[v.assessor_nome].push(v)
   })
+  const processosJudiciais = deputado.processos_judiciais || []
+  const certidoesObjetoPe = processosJudiciais.filter(p => (p.numero_processo || '').startsWith('OBJETO-PE-') || (p.numero_processo || '').startsWith('FORO-ESP-'))
+  const processosDatajud = processosJudiciais.filter(p => (p.esfera || '').includes('DataJud'))
+  const processosSancionadores = processosJudiciais.filter(p => (p.numero_processo || '').startsWith('PAD-'))
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
@@ -217,6 +221,11 @@ export default function DeputadoProfile() {
             {vinculosNepotismo.length > 0 && (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-900 border border-rose-300">
                 🧬 {vinculosNepotismo.length} Vínculo(s) Nepotismo / TSE
+              </span>
+            )}
+            {processosJudiciais.length > 0 && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-cyan-100 text-cyan-900 border border-cyan-300">
+                ⚖️ {processosJudiciais.length} Processo(s) / Certidões CNJ
               </span>
             )}
             {temSancoes && (
@@ -354,6 +363,18 @@ export default function DeputadoProfile() {
           }`}
         >
           <Users className="w-4 h-4" /> Gabinete & Nepotismo ({assessores.length}) {vinculosNepotismo.length > 0 && '🧬'}
+        </button>
+        <button
+          onClick={() => setActiveTab('judiciario')}
+          className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 ${
+            activeTab === 'judiciario'
+              ? 'bg-cyan-800 text-white shadow-sm'
+              : certidoesObjetoPe.length > 0 || processosSancionadores.length > 0
+              ? 'text-cyan-900 bg-cyan-50 hover:bg-cyan-100 font-extrabold border border-cyan-200'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <Scale className="w-4 h-4" /> Radar Judiciário CNJ ({processosJudiciais.length}) {(certidoesObjetoPe.length > 0 || processosSancionadores.length > 0) && '⚖️'}
         </button>
         <button
           onClick={() => setActiveTab('sancoes')}
@@ -1322,6 +1343,154 @@ export default function DeputadoProfile() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* CONTEÚDO DA ABA 8: RADAR JUDICIÁRIO CNJ DATAJUD & CERTIDÕES OBJETO E PÉ */}
+      {activeTab === 'judiciario' && (
+        <section className="space-y-6 animate-in fade-in duration-300">
+          {/* KPIs do Radar Judiciário */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">Autos no Radar Judiciário</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{processosJudiciais.length}</p>
+              <p className="text-xs text-slate-400 mt-0.5">CNJ DataJud + TSE + CGU/TCU</p>
+            </div>
+            <div className={`p-5 rounded-2xl border shadow-sm ${certidoesObjetoPe.length > 0 ? 'bg-red-50 border-red-300' : 'bg-emerald-50 border-emerald-200'}`}>
+              <p className={`text-xs font-bold uppercase tracking-wider ${certidoesObjetoPe.length > 0 ? 'text-red-800' : 'text-emerald-800'}`}>
+                🚨 Certidões de Objeto e Pé
+              </p>
+              <p className={`text-2xl font-black mt-1 ${certidoesObjetoPe.length > 0 ? 'text-red-700' : 'text-emerald-800'}`}>
+                {certidoesObjetoPe.length}
+              </p>
+              <p className={`text-xs mt-0.5 ${certidoesObjetoPe.length > 0 ? 'text-red-700 font-semibold' : 'text-emerald-700'}`}>
+                {certidoesObjetoPe.length > 0 ? 'Apontamentos judiciais ativos' : 'Certidões criminais negativas'}
+              </p>
+            </div>
+            <div className="bg-cyan-50 p-5 rounded-2xl border border-cyan-200 shadow-sm">
+              <p className="text-xs font-bold uppercase text-cyan-900 tracking-wider">⚖️ Autos no CNJ DataJud</p>
+              <p className="text-2xl font-black text-cyan-950 mt-1">{processosDatajud.length}</p>
+              <p className="text-xs text-cyan-700 mt-0.5">Rastreados na API Nacional do CNJ</p>
+            </div>
+            <div className={`p-5 rounded-2xl border shadow-sm ${processosSancionadores.length > 0 ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200'}`}>
+              <p className={`text-xs font-bold uppercase tracking-wider ${processosSancionadores.length > 0 ? 'text-amber-900' : 'text-slate-600'}`}>
+                 Processos Sancionadores (PAD)
+              </p>
+              <p className={`text-2xl font-black mt-1 ${processosSancionadores.length > 0 ? 'text-amber-800' : 'text-slate-700'}`}>
+                {processosSancionadores.length}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">Contratados / Favorecidos do Gabinete</p>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <Scale className="text-cyan-700" /> Radar Judiciário: CNJ DataJud, Certidões de Objeto e Pé & Processos Sancionadores
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Cruzamento direto com a API Pública Nacional do <strong>Conselho Nacional de Justiça (CNJ DataJud)</strong>, dossiê de <strong>Certidões Judiciais Criminais/Cíveis de Objeto e Pé (TSE)</strong> e Processos Administrativos Sancionadores da CGU/TCU.
+                </p>
+              </div>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-cyan-100 text-cyan-900 self-start md:self-auto">
+                {processosJudiciais.length} autos mapeados
+              </span>
+            </div>
+
+            {processosJudiciais.length === 0 ? (
+              <div className="bg-slate-50 p-8 rounded-xl text-center text-slate-500">
+                <p className="font-semibold text-slate-700">Nenhum processo judicial ou certidão de objeto e pé sincronizado para este parlamentar ainda.</p>
+                <p className="text-xs text-slate-400 mt-1">Clique em &ldquo;Analisar Gastos Agora&rdquo; no topo para consultar a API Pública do CNJ DataJud e o repositório de certidões do TSE.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {processosJudiciais.map((proc) => {
+                  const isObjetoPe = (proc.numero_processo || '').startsWith('OBJETO-PE-') || (proc.numero_processo || '').startsWith('FORO-ESP-')
+                  const isPad = (proc.numero_processo || '').startsWith('PAD-')
+                  return (
+                    <div
+                      key={proc.id}
+                      className={`p-5 rounded-2xl border transition-all ${
+                        isObjetoPe
+                          ? 'bg-red-50/40 border-red-300 shadow-sm'
+                          : isPad
+                          ? 'bg-amber-50/40 border-amber-300 shadow-sm'
+                          : 'bg-slate-50/60 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-slate-200/70">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase ${
+                              isObjetoPe
+                                ? 'bg-red-600 text-white'
+                                : isPad
+                                ? 'bg-amber-600 text-white'
+                                : 'bg-cyan-800 text-white'
+                            }`}>
+                              {proc.tribunal}
+                            </span>
+                            <span className="text-sm font-black text-slate-900 font-mono">
+                              {proc.numero_processo}
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white border border-slate-200 text-slate-700">
+                              {proc.classe_nome}
+                            </span>
+                            {proc.grau && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">
+                                Grau: {proc.grau}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-600 mt-1.5 font-semibold">
+                            🏛️ Órgão Julgador: <span className="text-slate-900">{proc.orgao_julgador || 'Não informado'}</span> | Esfera: <span className="text-slate-900">{proc.esfera}</span>
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-3 self-start lg:self-auto">
+                          <div className="text-right">
+                            <p className="text-[10px] font-bold uppercase text-slate-400">Polo / Vínculo</p>
+                            <p className="text-xs font-black text-slate-800">{proc.polo_parlamentar}</p>
+                            <p className="text-[11px] text-slate-500">Ajuizamento: {proc.data_ajuizamento || 'N/D'}</p>
+                          </div>
+                          {proc.url_consulta && (
+                            <a
+                              href={proc.url_consulta}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 shadow-sm transition-all whitespace-nowrap"
+                            >
+                              <Scale className="w-3.5 h-3.5 text-cyan-400" /> Abrir Certidão / Autos <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 text-xs">
+                        <div className="bg-white/80 p-3 rounded-xl border border-slate-200/80">
+                          <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">📋 Assuntos Processuais / Matéria</p>
+                          <p className="font-bold text-slate-800">{proc.assuntos || 'Matéria Eleitoral / Administrativa'}</p>
+                          <p className="text-slate-500 mt-1">Última atualização: {proc.data_ultima_movimentacao || 'N/D'}</p>
+                        </div>
+
+                        <div className={`p-3 rounded-xl border ${
+                          isObjetoPe
+                            ? 'bg-red-100/60 border-red-200 text-red-950'
+                            : isPad
+                            ? 'bg-amber-100/60 border-amber-200 text-amber-950'
+                            : 'bg-cyan-50/60 border-cyan-200 text-cyan-950'
+                        }`}>
+                          <p className="text-[10px] font-bold uppercase opacity-75 mb-1">⚡ Último Andamento / Resumo Forense</p>
+                          <p className="font-semibold text-xs leading-snug">{proc.resumo_andamento}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
