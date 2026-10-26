@@ -31,7 +31,7 @@ class DeputadoCreate(DeputadoBase):
 class DespesaSimples(BaseModel):
     id: int
     valor: float
-    data: date
+    data: Optional[date] = None
     tipo_despesa: str
     url_documento: Optional[str] = None
 
@@ -288,7 +288,7 @@ class DespesaCEAP(BaseModel):
     id: int
     deputado_id: int
     fornecedor_cnpj: Optional[str] = None
-    data: date
+    data: Optional[date] = None
     valor: float
     tipo_despesa: str
     numero_documento: Optional[str] = None
