@@ -66,15 +66,25 @@ async def carregar_cache_emendas_nacionais():
     novo_emendas = {}
     novo_favorecidos = {}
 
-    url = "https://portaldatransparencia.gov.br/download-de-dados/emendas-parlamentares/UNICO"
+    urls = [
+        "https://dadosabertos-download.cgu.gov.br/PortalDaTransparencia/saida/emendas-parlamentares/EmendasParlamentares.zip",
+        "https://portaldatransparencia.gov.br/download-de-dados/emendas-parlamentares/UNICO",
+    ]
     headers = {"User-Agent": "Mozilla/5.0"}
 
     try:
         async with httpx.AsyncClient(timeout=90.0, follow_redirects=True, verify=False) as client:
             print("[Emendas CGU] Baixando base consolidada de Emendas Parlamentares e PIX...")
-            r = await client.get(url, headers=headers)
-            if r.status_code != 200 or len(r.content) < 10000:
-                print(f"[Emendas CGU] Falha no download: status {r.status_code}")
+            r = None
+            for u in urls:
+                try:
+                    r = await client.get(u, headers=headers)
+                    if r.status_code == 200 and len(r.content) > 10000:
+                        break
+                except Exception:
+                    continue
+            if not r or r.status_code != 200 or len(r.content) < 10000:
+                print(f"[Emendas CGU] Falha no download")
                 return {}, {}
 
             z = zipfile.ZipFile(io.BytesIO(r.content))
