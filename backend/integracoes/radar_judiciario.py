@@ -333,32 +333,9 @@ async def sincronizar_radar_judiciario_deputado(db: Session, deputado_id: int) -
             ))
             inseridos += 1
 
-    favs_sanc = (
-        db.query(models.FavorecidoEmenda)
-        .filter(
-            models.FavorecidoEmenda.deputado_id == dep.id,
-            models.FavorecidoEmenda.sancionado_cgu == True,
-        )
-        .all()
-    )
-    for fv in favs_sanc[:10]:
-        m_proc = re.search(r"Proc:\s*([^\)]+)", fv.detalhe_sancao or "")
-        num_p = m_proc.group(1).strip() if m_proc else f"CEIS-{fv.cnpj_favorecido}"
-        db.add(models.ProcessoJudicialRadar(
-            deputado_id=dep.id,
-            numero_processo=num_p,
-            tribunal="Controladoria-Geral da União (CEIS / CNEP)",
-            classe_processual="Processo Sancionador de Favorecido de Emenda",
-            orgao_julgador=f"Ente Sancionador ({fv.municipio}/{fv.uf})",
-            assuntos=fv.detalhe_sancao or "Proibição de Contratar com o Poder Público",
-            polo_alvo=f"Favorecido Emenda: {fv.nome_favorecido[:38]} (R$ {fv.valor_recebido:,.2f})",
-            qtd_movimentacoes=1,
-            ultima_movimentacao=fv.detalhe_sancao or "Sanção ativa no CEIS/CNEP",
-            data_ajuizamento_ou_certidao=fv.ano_mes or "Vigente",
-            grau_risco="ALTA",
-            url_consulta="https://portaldatransparencia.gov.br/sancoes",
-        ))
-        inseridos += 1
+    # NOTA: Sanções de favorecidos de emendas não são incluídas no Radar Judiciário
+    # do parlamentar pelo Princípio da Imputação Direta (essas contratações decorrem de
+    # licitações feitas por órgãos executores locais - prefeituras, hospitais, estados).
 
     db.commit()
     return inseridos

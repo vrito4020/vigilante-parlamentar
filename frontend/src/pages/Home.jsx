@@ -675,11 +675,6 @@ export default function Home() {
                                 🚨 Sancionado CGU
                               </span>
                             )}
-                            {qtdFavSanc > 0 && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-100 text-rose-900 border border-rose-300">
-                                💸 {qtdFavSanc} Emenda(s) em Lista Negra
-                              </span>
-                            )}
                             {totalEmendasPix > 0 && (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
                                 ⚡ PIX: R$ {(totalEmendasPix / 1000000).toFixed(1)}M

@@ -31,7 +31,6 @@ import models
 # ---------------------------------------------------------------------------
 PESOS = {
     "FORNECEDOR_SANCIONADO_CEIS_CNEP": 50,
-    "EMENDA_FAVORECIDO_SANCIONADO_CGU": 50,
     "TRIANGULACAO_EMENDA_FORNECEDOR_CEAP": 50,
     "FORNECEDOR_CEAP_SUPERCONTRATO_EXECUTIVO": 45,
     "CARTEL_ENDERECO_OU_CONTATO_FORNECEDORES": 45,
@@ -745,17 +744,15 @@ def rodar_motor_heuristicas_por_deputado(db: Session, deputado_id: int):
     emendas_dep = db.query(models.EmendaParlamentar).filter(models.EmendaParlamentar.deputado_id == dep.id).all()
     favorecidos_dep = db.query(models.FavorecidoEmenda).filter(models.FavorecidoEmenda.deputado_id == dep.id).all()
 
-    # 17a. Empresa sancionada no CEIS/CNEP da CGU recebendo verba de Emenda Parlamentar
+    # 17a. Favorecidos Finais de Emendas Sancionados no CEIS/CNEP da CGU
+    # NOTA: Desativado conforme o Princípio da Imputação Direta de Responsabilidade.
+    # A destinação de emenda parlamentar é uma dotação orçamentária transferida para entes
+    # executores (prefeituras, governos estaduais, hospitais), que conduzem seus próprios
+    # processos licitatórios locais. A contratação de fornecedores inidôneos compete aos órgãos
+    # licitantes locais, não sendo escolha ou ato direto do parlamentar.
+    # O rastreamento permanece catalogado na aba de Emendas para fins de transparência cidadã,
+    # porém sem gerar alertas acusatórios nem pontos no Índice de Risco do deputado.
     fav_sancionados = [f for f in favorecidos_dep if f.sancionado_cgu and (f.valor_recebido or 0) >= 500.0]
-    fav_sancionados.sort(key=lambda x: x.valor_recebido or 0.0, reverse=True)
-    for fv in fav_sancionados[:3]:
-        alertas.append((
-            "EMENDA_FAVORECIDO_SANCIONADO_CGU", "ALTA",
-            f"Empresa/entidade favorecida por Emenda Parlamentar do deputado ({fv.nome_favorecido} - CNPJ {fv.cnpj_favorecido}, "
-            f"localizada em {fv.municipio}/{fv.uf}) recebeu {_brl(fv.valor_recebido)} de recursos orçamentários federais e "
-            f"consta sancionada na lista negra da CGU ({fv.detalhe_sancao}).",
-            fv.valor_recebido, None,
-        ))
 
     # 17b. Triangulação entre Emenda Parlamentar e Fornecedor da Cota (CEAP)
     cnpjs_ceap_totais = defaultdict(float)
@@ -1010,16 +1007,17 @@ def rodar_motor_heuristicas_por_deputado(db: Session, deputado_id: int):
                 ))
 
         # 21c. Rede de Processos Sancionadores Vinculados (CGU / TCU / TCE)
+        # Filtra estritamente por fornecedores diretos da Cota Parlamentar (CEAP)
         procs_sanc = [
             p for p in processos_jud
-            if "Fornecedor CEAP:" in (p.polo_alvo or "") or "Favorecido Emenda:" in (p.polo_alvo or "")
+            if "Fornecedor CEAP:" in (p.polo_alvo or "")
         ]
         if len(procs_sanc) >= 2:
             alertas.append((
                 "REDE_PROCESSOS_SANCIONADORES_CONTRATADOS", "ALTA",
                 f"Ecossistema sob Processo Sancionador: {len(procs_sanc)} processos administrativos punitivos "
-                f"(CGU/CEIS/CNEP/TCU) recaem diretamente sobre empresas contratadas na Cota Parlamentar ou "
-                f"contempladas por Emendas deste deputado.",
+                f"(CGU/CEIS/CNEP/TCU) recaem diretamente sobre fornecedores contratados diretamente na Cota "
+                f"Parlamentar (CEAP) deste deputado.",
                 None, None,
             ))
 

@@ -242,11 +242,6 @@ export default function DeputadoProfile() {
                 <ShieldAlert className="w-3.5 h-3.5 mr-1 text-red-600" /> Fornecedor Sancionado (CGU)
               </span>
             )}
-            {favSancionados.length > 0 && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300 animate-pulse">
-                🚨 {favSancionados.length} Emenda(s) p/ Sancionados CGU
-              </span>
-            )}
           </div>
 
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 inline-block">
@@ -330,12 +325,10 @@ export default function DeputadoProfile() {
           className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 ${
             activeTab === 'emendas'
               ? 'bg-purple-700 text-white shadow-sm'
-              : favSancionados.length > 0
-              ? 'text-purple-800 bg-purple-50 hover:bg-purple-100 font-extrabold border border-purple-200'
               : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
-          <DollarSign className="w-4 h-4" /> Emendas & PIX ({emendas.length}) {favSancionados.length > 0 && '🚨'}
+          <DollarSign className="w-4 h-4" /> Emendas & PIX ({emendas.length})
         </button>
         <button
           onClick={() => setActiveTab('pncp')}
@@ -951,22 +944,22 @@ export default function DeputadoProfile() {
               <p className="text-2xl font-black text-purple-950 mt-1">{formatarMoeda(totalEmendasPix)}</p>
               <p className="text-xs text-purple-700 mt-0.5">Repasse direto sem projeto prévio</p>
             </div>
-            <div className={`p-5 rounded-2xl border shadow-sm ${favSancionados.length > 0 ? 'bg-red-50 border-red-300' : 'bg-emerald-50 border-emerald-200'}`}>
-              <p className={`text-xs font-bold uppercase tracking-wider ${favSancionados.length > 0 ? 'text-red-800' : 'text-emerald-800'}`}>
-                🚨 Favorecidos Sancionados CGU
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                🔍 Fornecedores c/ Sanção (Órgãos Locais)
               </p>
-              <p className={`text-2xl font-black mt-1 ${favSancionados.length > 0 ? 'text-red-700' : 'text-emerald-800'}`}>
+              <p className="text-2xl font-black mt-1 text-slate-800">
                 {favSancionados.length} {favSancionados.length === 1 ? 'empresa' : 'empresas'}
               </p>
-              <p className={`text-xs mt-0.5 ${favSancionados.length > 0 ? 'text-red-600 font-semibold' : 'text-emerald-700'}`}>
-                {favSancionados.length > 0 ? 'Receberam verba de emendas' : 'Nenhuma punição no CEIS'}
+              <p className="text-xs mt-0.5 text-slate-500 font-medium">
+                {favSancionados.length > 0 ? 'Contratadas por prefeituras/hospitais' : 'Nenhuma punição no CEIS'}
               </p>
             </div>
           </div>
 
           {/* Tabela 1: Favorecidos Finais das Emendas (CNPJs Reais) */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-100">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                   <Building2 className="text-purple-600" /> Rastreamento de Favorecidos Finais das Emendas (CNPJ)
@@ -978,6 +971,14 @@ export default function DeputadoProfile() {
               <span className="text-xs font-bold px-3 py-1 rounded-full bg-purple-100 text-purple-800 self-start md:self-auto">
                 {favorecidosEmendas.length} CNPJs rastreados
               </span>
+            </div>
+
+            {/* Banner Forense: Princípio da Imputação Direta de Responsabilidade */}
+            <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-4 mb-5 flex items-start gap-3">
+              <span className="text-xl leading-none">⚖️</span>
+              <div className="text-xs text-amber-950 leading-relaxed">
+                <strong className="font-bold">Princípio da Imputação Direta de Responsabilidade:</strong> As empresas e fornecedores listados abaixo foram contratados por meio de licitações autônomas realizadas pelos entes executores locais (prefeituras, governos estaduais, hospitais ou secretarias), sem escolha direta do parlamentar. Eventuais sanções aplicadas a essas fornecedoras decorrem da fiscalização do órgão licitante executor e <strong className="text-amber-900">não pontuam no Índice de Risco do deputado</strong> (salvo se houver contratação direta também pela Cota Parlamentar / CEAP).
+              </div>
             </div>
 
             {favorecidosEmendas.length === 0 ? (
